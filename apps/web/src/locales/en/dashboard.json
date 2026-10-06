@@ -1,0 +1,26 @@
+{
+  "title": "Dashboard",
+  "subtitle": "A quick view of customer accounts and recent activity.",
+  "kpi": {
+    "label": "Account summary",
+    "total": "Total accounts",
+    "totalHint": "Across all lifecycle states",
+    "active": "Active",
+    "activeHint": "{{pct}}% of accounts",
+    "inactive": "Inactive",
+    "inactiveHint": "Deactivated or paused",
+    "draft": "Draft",
+    "draftHint": "Awaiting publication"
+  },
+  "recent": {
+    "title": "Recently created accounts",
+    "viewAll": "View all accounts",
+    "empty": "No accounts have been created yet.",
+    "columns": {
+      "account": "Account",
+      "contact": "Main contact",
+      "created": "Created",
+      "status": "Status"
+    }
+  }
+}

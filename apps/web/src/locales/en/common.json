@@ -1,0 +1,109 @@
+{
+  "appName": "Force 5 CRM",
+  "brand": {
+    "name": "Force 5",
+    "product": "CRM",
+    "mark": "F5",
+    "home": "Force 5 CRM home"
+  },
+  "actions": {
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "continue": "Continue",
+    "back": "Back",
+    "edit": "Edit",
+    "delete": "Delete",
+    "remove": "Remove",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "clear": "Clear",
+    "clearFilters": "Clear filters",
+    "retry": "Try again",
+    "moreActions": "More actions for {{name}}",
+    "removeItem": "Remove {{name}}",
+    "addMore": "Add…",
+    "leave": "Leave page",
+    "stay": "Keep editing",
+    "goHome": "Go to dashboard",
+    "reload": "Reload page"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "draft": "Draft",
+    "new": "New",
+    "all": "All"
+  },
+  "filters": {
+    "status": "Status filter",
+    "search": "Search",
+    "perPage": "{{count}} per page",
+    "pageSize": "Rows per page"
+  },
+  "table": {
+    "sortAsc": "Sorted ascending",
+    "sortDesc": "Sorted descending",
+    "sortBy": "Sort by {{column}}",
+    "actions": "Actions",
+    "showing": "{{from}}–{{to}} of {{total}}",
+    "page": "Page {{page}} of {{pages}}",
+    "previous": "Previous page",
+    "next": "Next page",
+    "pagination": "Pagination",
+    "loading": "Loading…"
+  },
+  "empty": {
+    "noMatches": "No matches",
+    "noResultsFor": "Nothing matches “{{search}}”.",
+    "noResults": "Nothing matches these filters."
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network": "Unable to reach the server. Check your connection.",
+    "unavailable": "The service is temporarily unavailable. Please try again shortly.",
+    "forbidden": "You don’t have permission to do that.",
+    "rateLimited": "Too many attempts. Please wait a moment and try again.",
+    "notFound": "We couldn’t find that record.",
+    "loadFailed": "We couldn’t load this page.",
+    "fixFields": "Please fix the highlighted fields."
+  },
+  "unsaved": {
+    "title": "Discard unsaved changes?",
+    "body": "You have changes that haven’t been saved. If you leave now they will be lost."
+  },
+  "image": {
+    "browse": "browse",
+    "dropOr": "Drop an image or",
+    "rules": "PNG, JPEG or WebP · max 5 MB",
+    "change": "Change image",
+    "remove": "Remove image",
+    "cropTitle": "Crop image",
+    "cropHelp": "Drag to reposition. Use the slider or scroll to zoom.",
+    "zoom": "Zoom",
+    "apply": "Apply",
+    "uploading": "Uploading…",
+    "tooLarge": "Images must be 5 MB or smaller.",
+    "badType": "Use a PNG, JPEG or WebP image.",
+    "readFailed": "That image couldn’t be read.",
+    "pending": "Will upload when the account is saved",
+    "preview": "{{label}} preview"
+  },
+  "address": {
+    "country": "Country",
+    "selectCountry": "Select country…",
+    "address": "Address",
+    "city": "City",
+    "select": "Select {{label}}…",
+    "postalCode": "Postal code"
+  },
+  "select": {
+    "placeholder": "Select…",
+    "none": "None"
+  },
+  "time": {
+    "minutesSeconds": "{{m}}:{{s}}"
+  }
+}

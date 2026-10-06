@@ -1,0 +1,50 @@
+{
+  "nav": {
+    "label": "Main navigation",
+    "dashboard": "Dashboard",
+    "accounts": "Accounts",
+    "products": "Products",
+    "profile": "My Profile",
+    "open": "Open navigation",
+    "close": "Close navigation"
+  },
+  "breadcrumb": "Breadcrumb",
+  "skipToContent": "Skip to main content",
+  "footer": "© {{year}} Force 5, Inc.",
+  "environment": "Environment: {{env}}",
+  "userMenu": {
+    "open": "Account menu for {{name}}",
+    "profile": "My Profile",
+    "theme": "Theme",
+    "logout": "Logout",
+    "signingOut": "Signing out…"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "saveFailed": "Theme applied, but it couldn’t be saved to your profile."
+  },
+  "idle": {
+    "title": "You’ll be signed out in {{time}}",
+    "body": "You’ve been inactive for a while. For security, you’ll be signed out automatically unless you choose to stay.",
+    "stay": "Stay signed in",
+    "signOut": "Sign out",
+    "keepaliveFailed": "We couldn’t extend your session. Please sign in again."
+  },
+  "notFound": {
+    "code": "404",
+    "title": "Page not found",
+    "body": "The page you’re looking for doesn’t exist or has moved."
+  },
+  "error": {
+    "title": "Something went wrong",
+    "body": "An unexpected error occurred. You can try again, or head back to the dashboard.",
+    "details": "Error details"
+  },
+  "forbidden": {
+    "title": "No access",
+    "body": "You don’t have permission to view this page. Ask an administrator if you need access."
+  },
+  "loading": "Loading Force 5 CRM…"
+}

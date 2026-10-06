@@ -1,0 +1,66 @@
+{
+  "newProduct": "New Product",
+  "list": {
+    "title": "Products",
+    "subtitle": "Manage the global saleable product catalog.",
+    "searchPlaceholder": "Search products…",
+    "searchLabel": "Search products",
+    "tableLabel": "Products",
+    "na": "N/A",
+    "emptyTitle": "No products yet",
+    "emptyBody": "Add the first product to the catalog.",
+    "emptyFiltered": "No products match “{{search}}”.",
+    "columns": {
+      "name": "Name",
+      "description": "Description",
+      "code": "Product code",
+      "sku": "SKU",
+      "category": "Category",
+      "status": "Status"
+    }
+  },
+  "detail": {
+    "crumb": "Product",
+    "newTitle": "New Product",
+    "subtitle": "Product catalog details and licensing metadata.",
+    "notFoundTitle": "Product not found",
+    "notFoundBody": "This product doesn’t exist or was deleted."
+  },
+  "fields": {
+    "name": "Name",
+    "description": "Description",
+    "code": "Product code",
+    "sku": "SKU",
+    "version": "Version",
+    "category": "Category",
+    "selectCategory": "Select category…",
+    "active": "Active",
+    "activeHint": "Inactive products can’t be assigned to accounts"
+  },
+  "audit": {
+    "created": "Created by {{who}} on {{date}}",
+    "createdNoBy": "Created on {{date}}",
+    "updated": "Updated by {{who}} on {{date}}",
+    "updatedNoBy": "Updated on {{date}}"
+  },
+  "actions": {
+    "create": "Create product",
+    "delete": "Delete"
+  },
+  "confirm": {
+    "deleteTitle": "Delete product?",
+    "deleteBody": "Delete product {{name}}? This cannot be undone.",
+    "deleteConfirm": "Delete product",
+    "deactivateTitle": "Deactivate product {{name}}?",
+    "deactivateBody": "It will no longer be available to assign to accounts.",
+    "activateTitle": "Activate product {{name}}?",
+    "activateBody": "It will be available to assign to accounts again."
+  },
+  "toast": {
+    "created": "{{name}} created",
+    "saved": "Changes saved",
+    "deleted": "{{name}} deleted",
+    "activated": "{{name}} activated",
+    "deactivated": "{{name}} deactivated"
+  }
+}

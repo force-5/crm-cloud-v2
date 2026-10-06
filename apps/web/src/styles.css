@@ -1,0 +1,275 @@
+@import 'tailwindcss';
+
+/* Dark mode is driven by the `.dark` class on <html> (set before paint by public/theme-init.js). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Colour tokens — mirror packages/tokens/src/index.ts (light + dark). A unit test
+ * (src/styles.test.ts) fails if these drift from the shared token values.
+ */
+:root {
+  /* @crm/tokens light */
+  --background: #f5f7fa;
+  --surface: #ffffff;
+  --surface-muted: #f1f3f6;
+  --border: #e7e9ee;
+  --border-strong: #d7dbe2;
+  --text: #17202a;
+  --text-muted: #6b7280;
+  --text-subtle: #8a919b;
+  --primary: #f36b21;
+  --primary-text: #ffffff;
+  --primary-soft: #fff4e9;
+  --primary-soft-text: #ad4d12;
+  --focus-ring: rgba(243, 107, 33, 0.35);
+  --sidebar: #151a21;
+  --sidebar-text: #aeb5bf;
+  --sidebar-active: #242b34;
+  --success: #16724e;
+  --success-soft: #e8f6ef;
+  --warning: #9a5a08;
+  --warning-soft: #fff2dd;
+  --danger: #b83232;
+  --danger-soft: #fdeaea;
+  --info: #345fc0;
+  --info-soft: #e9efff;
+  --neutral-soft: #f4f4f5;
+  --neutral-text: #656b73;
+  --overlay: rgba(11, 16, 24, 0.66);
+
+  /* Web-only derived values */
+  --sidebar-end: #11151b;
+  /* White text on brand orange (#f36b21) is 3.0:1 — below WCAG AA for 14px text.
+     Filled primary buttons use this deeper brand orange (4.7:1 with white). */
+  --primary-solid: #c2500e;
+  --primary-solid-hover: #a9450b;
+  --primary-ink: #b34a0d; /* orange text on white surfaces (links on hover, active tab text) */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-pop: 0 14px 38px rgba(17, 24, 39, 0.14);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.32);
+  --toast-bg: #17202a;
+  --toast-text: #ffffff;
+  --avatar-bg: #222a34;
+
+  /* shadcn-style aliases */
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --muted: var(--surface-muted);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--surface-muted);
+  --accent-foreground: var(--text);
+  --primary-foreground: var(--primary-text);
+  --destructive: var(--danger);
+  --input: var(--border-strong);
+  --ring: var(--primary);
+}
+
+.dark {
+  /* @crm/tokens dark */
+  --background: #0f141a;
+  --surface: #171d25;
+  --surface-muted: #1e252e;
+  --border: #272f3a;
+  --border-strong: #343d4a;
+  --text: #e8ebef;
+  --text-muted: #9aa3ae;
+  --text-subtle: #7a838e;
+  --primary: #ff8a3d;
+  --primary-text: #1a0d04;
+  --primary-soft: #3a2213;
+  --primary-soft-text: #ffb07a;
+  --focus-ring: rgba(255, 138, 61, 0.45);
+  --sidebar: #0b0f14;
+  --sidebar-text: #9aa3ae;
+  --sidebar-active: #1e252e;
+  --success: #5fd3a0;
+  --success-soft: #123326;
+  --warning: #f2b45a;
+  --warning-soft: #3a2a10;
+  --danger: #ff8080;
+  --danger-soft: #3d1717;
+  --info: #8fb0ff;
+  --info-soft: #18264a;
+  --neutral-soft: #252b33;
+  --neutral-text: #aab1ba;
+  --overlay: rgba(0, 0, 0, 0.7);
+
+  --sidebar-end: #080b0f;
+  --primary-solid: #ff8a3d; /* dark text on light orange: 7.9:1 */
+  --primary-solid-hover: #ff9d5c;
+  --primary-ink: #ffb07a;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 14px 38px rgba(0, 0, 0, 0.5);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --toast-bg: #2a323d;
+  --toast-text: #f3f5f7;
+  --avatar-bg: #343d4a;
+}
+
+@theme inline {
+  --font-sans: 'Lato', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  --font-display: 'Bebas Neue', 'Lato', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+  --color-primary: var(--primary);
+  --color-primary-text: var(--primary-text);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-text: var(--primary-soft-text);
+  --color-primary-solid: var(--primary-solid);
+  --color-primary-solid-hover: var(--primary-solid-hover);
+  --color-primary-ink: var(--primary-ink);
+  --color-focus-ring: var(--focus-ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-end: var(--sidebar-end);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-neutral-soft: var(--neutral-soft);
+  --color-neutral-text: var(--neutral-text);
+  --color-overlay: var(--overlay);
+  --color-toast: var(--toast-bg);
+  --color-toast-text: var(--toast-text);
+  --color-avatar: var(--avatar-bg);
+
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --shadow-modal: var(--shadow-modal);
+}
+
+@theme {
+  --animate-fade-in: fade-in 150ms ease-out;
+  --animate-fade-out: fade-out 120ms ease-in;
+  --animate-zoom-in: zoom-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-up: slide-up 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-in-left: slide-in-left 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes zoom-in {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes slide-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  @keyframes slide-in-left {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+  @keyframes shimmer {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--primary-soft);
+    color: var(--primary-soft-text);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Card shell shared by metric cards, list cards and form cards (prototype: 12px radius, #e7e9ee border). */
+  .crm-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+  }
+  /* Dotted + diagonal decoration of the login visual panel (prototype .loginvisual:before). */
+  .login-visual-pattern {
+    background-image:
+      radial-gradient(circle at 15% 20%, rgba(243, 107, 33, 0.2) 0 2px, transparent 3px),
+      radial-gradient(circle at 70% 30%, rgba(243, 107, 33, 0.27) 0 3px, transparent 4px),
+      linear-gradient(120deg, transparent 30%, rgba(243, 107, 33, 0.05) 30% 31%, transparent 31% 65%, rgba(255, 255, 255, 0.03) 65% 66%, transparent 66%);
+    background-size: 130px 130px, 190px 190px, 100% 100%;
+  }
+  .safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+}

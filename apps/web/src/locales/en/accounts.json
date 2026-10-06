@@ -1,0 +1,124 @@
+{
+  "newAccount": "New Account",
+  "list": {
+    "title": "Accounts",
+    "subtitle": "Manage customer tenants, provisioning and licenses.",
+    "searchPlaceholder": "Search accounts…",
+    "searchLabel": "Search accounts",
+    "tableLabel": "Accounts",
+    "missing": "Missing",
+    "officeShort": "o:",
+    "mobileShort": "m:",
+    "emptyTitle": "No accounts yet",
+    "emptyBody": "Create the first customer account to get started.",
+    "emptyFiltered": "No accounts match “{{search}}”.",
+    "columns": {
+      "name": "Name",
+      "contact": "Main contact",
+      "phone": "Phone",
+      "city": "City",
+      "state": "State",
+      "country": "Country",
+      "language": "Language",
+      "created": "Created",
+      "status": "Status"
+    }
+  },
+  "confirm": {
+    "deactivateTitle": "Deactivate account {{name}}?",
+    "deactivateBody": "Users of this account will no longer be able to sign in until it is activated again.",
+    "activateTitle": "Activate account {{name}}?",
+    "activateBody": "Users of this account will be able to sign in again."
+  },
+  "toast": {
+    "activated": "{{name}} activated",
+    "deactivated": "{{name}} deactivated",
+    "draftSaved": "Draft saved",
+    "draftCreated": "Draft created",
+    "published": "{{name}} published — the welcome email is on its way",
+    "saved": "Changes saved",
+    "imageUploaded": "{{label}} updated",
+    "imageFailed": "{{label}} couldn’t be uploaded: {{message}}",
+    "imagesPendingFailed": "The account was saved, but an image upload failed. Open the account to try again.",
+    "publishNotSupported": "Publishing an existing draft isn’t available yet (VMS change V3 pending). Your draft has been saved — publish it once VMS support lands.",
+    "notFound": "That account no longer exists."
+  },
+  "detail": {
+    "crumb": "Account",
+    "newTitle": "New Account",
+    "newSubtitle": "Create a draft now or complete the required fields and publish.",
+    "draftSubtitle": "This account is a draft. Publish it to provision the tenant.",
+    "registered": "Registered {{date}} by {{who}}",
+    "registeredNoBy": "Registered {{date}}",
+    "tabs": {
+      "label": "Account sections",
+      "details": "Details",
+      "licenses": "Licenses",
+      "licensesDisabled": "Save the account first to manage licenses"
+    },
+    "draftNoticeStrong": "Drafts are flexible.",
+    "draftNoticeRest": "Only Company Name is required until you publish.",
+    "notFoundTitle": "Account not found",
+    "notFoundBody": "This account doesn’t exist or you no longer have access to it."
+  },
+  "actions": {
+    "saveAsDraft": "Save as draft",
+    "saveDraft": "Save draft",
+    "publish": "Publish",
+    "saveChanges": "Save changes"
+  },
+  "sections": {
+    "company": "Company",
+    "administrator": "Administrator",
+    "administratorHint": "The main contact becomes the account’s first administrator.",
+    "address": "Address",
+    "branding": "Branding"
+  },
+  "fields": {
+    "name": "Company name",
+    "language": "Language",
+    "selectLanguage": "Select language…",
+    "timeZone": "Time zone",
+    "selectTimeZone": "Select time zone…",
+    "searchTimeZones": "Search time zones",
+    "labelPreset": "Label preset",
+    "labelPresetLocked": "Applied when the account was published; it can’t be changed afterwards.",
+    "frameworks": "Frameworks",
+    "chooseFrameworks": "Choose frameworks…",
+    "searchFrameworks": "Search frameworks",
+    "frameworksHint": "Drives which kiosks and areas are created at publish.",
+    "requireMfa": "Require 2-factor authentication",
+    "requireMfaHint": "Require MFA for tenant users",
+    "active": "Active account",
+    "activeHint": "Allow this tenant to use the platform",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "emailHint": "This becomes the administrator’s login.",
+    "mobile": "Mobile",
+    "phone": "Office phone",
+    "phoneHint": "Include the country code, e.g. +1 404 555 0123",
+    "logo": "Company logo",
+    "logoHint": "Cropped to {{w}} × {{h}} (the size VMS displays).",
+    "signinImage": "Sign-in background",
+    "signinImageHint": "Cropped to 16:9 and saved at 1920 × 1080."
+  },
+  "publish": {
+    "title": "Publish {{name}}?",
+    "body": "Publishing provisions the customer tenant. This is a significant action and can’t be undone like a draft save.",
+    "willCreate": "Publishing will create:",
+    "items": {
+      "admin": "An administrator account for {{email}}",
+      "facility": "A facility, with areas, kiosks and OTPs for each selected framework",
+      "frameworks": "Frameworks: {{list}}",
+      "noFrameworks": "No frameworks selected",
+      "licenses": "25-seat KIOSK and ADMIN licenses",
+      "flows": "Flows and the label preset ({{preset}})",
+      "flowsNoPreset": "Default flows (no label preset)",
+      "audit": "An audit report email to Force 5"
+    },
+    "welcomeStrong": "Welcome email:",
+    "welcomeRest": "The welcome email with login credentials will be sent to {{email}}.",
+    "confirm": "Publish account"
+  }
+}

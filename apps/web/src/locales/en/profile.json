@@ -1,0 +1,68 @@
+{
+  "title": "My Profile",
+  "subtitle": "Manage your personal details, security and appearance.",
+  "tabs": {
+    "label": "Profile sections",
+    "profile": "Profile",
+    "security": "Security",
+    "appearance": "Appearance"
+  },
+  "photo": {
+    "label": "Profile photo",
+    "removeTitle": "Remove your photo?",
+    "removeBody": "Your initials will be shown instead.",
+    "removeConfirm": "Remove photo",
+    "uploaded": "Profile photo updated",
+    "removed": "Profile photo removed",
+    "failed": "Your photo couldn’t be updated: {{message}}"
+  },
+  "roles": "Security roles",
+  "noRoles": "No roles assigned",
+  "fields": {
+    "email": "Email",
+    "emailHint": "Your sign-in email can’t be changed here.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "mobilePhone": "Mobile phone",
+    "language": "Language",
+    "selectLanguage": "Select language…",
+    "timeZone": "Time zone",
+    "selectTimeZone": "Select time zone…",
+    "searchTimeZones": "Search time zones"
+  },
+  "save": "Save profile",
+  "saved": "Profile saved",
+  "security": {
+    "mfaTitle": "Two-factor authentication",
+    "mfaEnable": "Enable 2-factor authentication",
+    "mfaHint": "Add an extra layer of protection to your account.",
+    "required": "Required by your organization",
+    "requiredHint": "Your organization requires 2-factor authentication, so it can’t be turned off.",
+    "method": "Method",
+    "sms": "SMS",
+    "totp": "Authenticator app (TOTP)",
+    "smsTo": "Codes are sent to {{phone}}.",
+    "smsNoPhone": "Add a mobile phone number on the Profile tab before using SMS codes.",
+    "enabled": "Two-factor authentication turned on",
+    "disabled": "Two-factor authentication turned off",
+    "methodSaved": "Verification method updated",
+    "totpTitle": "Set up your authenticator app",
+    "totpStep1": "Scan this QR code with Google Authenticator, Microsoft Authenticator, 1Password or a similar app.",
+    "totpStep2": "Can’t scan it? Enter this key manually:",
+    "totpQrAlt": "QR code for setting up your authenticator app",
+    "totpDone": "I’ve added it — use the authenticator app",
+    "totpStart": "Set up authenticator app",
+    "totpPendingVerify": "Code verification during setup isn’t available yet (VMS change V4); you’ll confirm the code the next time you sign in.",
+    "copy": "Copy key",
+    "copied": "Key copied",
+    "passwordTitle": "Password",
+    "passwordNote": "Self-service password changes are coming soon (VMS change V5). Until then, use",
+    "passwordLink": "Forgot password",
+    "passwordNoteEnd": "to set a new password."
+  },
+  "appearance": {
+    "title": "Theme",
+    "label": "Colour theme",
+    "hint": "Your preference is applied immediately and saved to your profile."
+  }
+}

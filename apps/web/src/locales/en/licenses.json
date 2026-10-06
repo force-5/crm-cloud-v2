@@ -1,0 +1,66 @@
+{
+  "searchPlaceholder": "Search licenses…",
+  "searchLabel": "Search licenses",
+  "tableLabel": "Licenses for {{name}}",
+  "add": "Add license",
+  "columns": {
+    "product": "Product",
+    "description": "Description",
+    "type": "Type",
+    "codeSku": "Code / SKU",
+    "category": "Category",
+    "seats": "Seats",
+    "status": "Status"
+  },
+  "seats": {
+    "purchased": "<b>{{count}}</b> purchased",
+    "purchasedLabel": "purchased",
+    "usage": "{{used}} used · {{available}} available",
+    "overAllocated": "Over-allocated by {{count}}",
+    "progress": "{{used}} of {{purchased}} seats used",
+    "notSet": "Not set"
+  },
+  "empty": {
+    "title": "No licenses yet",
+    "body": "Add a product license to give {{name}} access to it.",
+    "filtered": "No licenses match these filters."
+  },
+  "menu": {
+    "editSeats": "Edit seats",
+    "label": "Actions for {{name}}"
+  },
+  "editSeats": {
+    "title": "Edit seats",
+    "label": "Purchased seats",
+    "belowUsed": "This is below the {{used}} seats already in use. Users won’t be removed, but the license will be over-allocated.",
+    "save": "Save seats",
+    "saved": "Seats updated for {{name}}"
+  },
+  "confirm": {
+    "deactivateTitle": "Deactivate license {{name}}?",
+    "deactivateBody": "Users of this account will lose access to this product until the license is activated again.",
+    "activateTitle": "Activate license {{name}}?",
+    "activateBody": "Users of this account will regain access to this product."
+  },
+  "toast": {
+    "added": "{{name}} license added",
+    "activated": "{{name}} license activated",
+    "deactivated": "{{name}} license deactivated"
+  },
+  "addDialog": {
+    "title": "Add license",
+    "description": "The selected product will be assigned to {{name}}.",
+    "product": "Product",
+    "chooseProduct": "Choose a product…",
+    "searchProducts": "Search products",
+    "noneAvailable": "Every active product is already assigned to this account.",
+    "loading": "Loading products…",
+    "seats": "Purchased seats",
+    "details": "Selected product",
+    "code": "Code",
+    "sku": "SKU",
+    "category": "Category",
+    "type": "Type",
+    "submit": "Add license"
+  }
+}

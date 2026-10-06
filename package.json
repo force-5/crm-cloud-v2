@@ -1,0 +1,28 @@
+{
+  "name": "force5-crm",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "corepack pnpm --parallel --filter @crm/mock-vms --filter @crm/bff --filter @crm/web dev",
+    "dev:mobile": "corepack pnpm --filter @crm/mobile start",
+    "build": "corepack pnpm -r --filter !@crm/mobile build",
+    "typecheck": "corepack pnpm -r typecheck",
+    "test": "corepack pnpm -r --filter !@crm/mobile test",
+    "test:e2e": "corepack pnpm --filter @crm/e2e test:e2e",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^5",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.71.1"
+  }
+}

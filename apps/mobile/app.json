@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "Force 5 CRM",
+    "slug": "force5-crm",
+    "scheme": "force5crm",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#151a21",
+    "primaryColor": "#f36b21",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.force5.crm",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.force5.crm",
+      "adaptiveIcon": {
+        "backgroundColor": "#151a21",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120,
+          "resizeMode": "contain",
+          "backgroundColor": "#151a21",
+          "dark": { "image": "./assets/splash-icon.png", "backgroundColor": "#0b0f14" }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Force 5 CRM uses your photo library to set your profile photo and account branding images.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
