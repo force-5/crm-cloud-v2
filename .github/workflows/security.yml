@@ -116,7 +116,7 @@ jobs:
 
       # npm advisory audit of production dependencies: the Node equivalent of admin's weekly OWASP
       # Dependency Check, and fast enough to run on every push. Report-only.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: corepack enable
