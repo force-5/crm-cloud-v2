@@ -24,7 +24,7 @@
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
-    "i18next": "^25.0.0",
+    "i18next": "^26.4.2",
     "react": "19.2.3",
     "react-hook-form": "^7.62.0",
     "react-i18next": "^15.6.0",
