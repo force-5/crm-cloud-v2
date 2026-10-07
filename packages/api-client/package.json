@@ -8,5 +8,5 @@
   "exports": { ".": "./src/index.ts" },
   "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": { "@crm/contracts": "workspace:*" },
-  "devDependencies": { "vitest": "^3.2.0", "typescript": "~5.9.3" }
+  "devDependencies": { "vitest": "^3.2.0", "typescript": "~6.0.3" }
 }
