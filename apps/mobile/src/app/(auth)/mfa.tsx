@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Redirect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { mfaVerifySchema } from '@crm/contracts';
 import { Button, Notice, Text } from '@/components';
 import { AuthShell } from '@/features/auth/AuthShell';
@@ -13,6 +14,7 @@ import { haptics } from '@/lib/haptics';
 const RESEND_COOLDOWN_SECONDS = 30;
 
 export default function MfaScreen() {
+  const { t } = useTranslation('auth');
   const { pending, applyLoginResult } = useSession();
   const toast = useToast();
   const [code, setCode] = useState('');
@@ -34,7 +36,7 @@ export default function MfaScreen() {
   const verify = async (passcode = code) => {
     const parsed = mfaVerifySchema.safeParse({ passcode });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Enter the 6-digit code');
+      setError(parsed.error.issues[0]?.message ?? t('mfa.enterCode'));
       return;
     }
     setVerifying(true);
@@ -45,7 +47,7 @@ export default function MfaScreen() {
     } catch (err) {
       haptics.error();
       setCode('');
-      setError(errorMessage(err, 'That code is not valid. Try again.'));
+      setError(errorMessage(err, t('mfa.invalid')));
     } finally {
       setVerifying(false);
     }
@@ -57,7 +59,7 @@ export default function MfaScreen() {
     try {
       const r = await api.auth.sendMfa();
       if (r.destination) setDestination(r.destination);
-      toast.success('A new code is on its way');
+      toast.success(t('mfa.resent'));
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       setError(errorMessage(err));
@@ -69,11 +71,13 @@ export default function MfaScreen() {
   return (
     <AuthShell
       back
-      title="Verify it's you"
+      title={t('mfa.title')}
       subtitle={
         isSms
-          ? `Enter the 6-digit code we texted to ${destination ?? 'your mobile phone'}.`
-          : 'Enter the 6-digit code from your authenticator app.'
+          ? destination
+            ? t('mfa.leadSms', { destination })
+            : t('mfa.leadSmsNoDest')
+          : t('mfa.leadTotp')
       }
     >
       {error ? <Notice tone="danger">{error}</Notice> : null}
@@ -86,17 +90,17 @@ export default function MfaScreen() {
         error={!!error}
         onComplete={(c) => void verify(c)}
       />
-      <Button title="Verify" size="lg" full loading={verifying} disabled={code.length !== 6} onPress={() => verify()} />
+      <Button title={t('mfa.submit')} size="lg" full loading={verifying} disabled={code.length !== 6} onPress={() => verify()} />
       {isSms ? (
         <View style={{ alignItems: 'center' }}>
           {cooldown > 0 ? (
             <Text variant="small" tone="muted">
-              Didn't get it? You can resend in {cooldown}s
+              {t('mfa.resendIn', { seconds: cooldown })}
             </Text>
           ) : (
             <Pressable accessibilityRole="button" onPress={resend} disabled={resending} hitSlop={8}>
               <Text variant="small" tone="primary" weight="bold">
-                {resending ? 'Sending…' : 'Resend code'}
+                {resending ? t('mfa.sending') : t('mfa.resend')}
               </Text>
             </Pressable>
           )}

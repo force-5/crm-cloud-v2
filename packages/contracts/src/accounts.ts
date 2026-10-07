@@ -94,9 +94,9 @@ export const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as
 export const accountFormSchema = z.object({
   name: z.string().trim().min(1, 'Company name is required').max(100),
   languageId: idField(),
-  timeZoneName: emptyToUndefined(z.string()),
-  labelVerticalId: z.number().nullable().optional(),
-  frameworkIds: z.array(z.number()).default([]),
+  timeZoneName: emptyToUndefined(z.string().max(64)),
+  labelVerticalId: z.number().int().positive().nullable().optional(),
+  frameworkIds: z.array(z.number().int().positive()).max(50).default([]),
   requireMfa: z.boolean().default(false),
   active: z.boolean().default(true),
   mainContactFirstName: emptyToUndefined(z.string().trim().max(50)),
@@ -164,10 +164,13 @@ export const setActiveSchema = z.object({ active: z.boolean() });
 export type SetActiveRequest = z.infer<typeof setActiveSchema>;
 
 /** `PUT /api/accounts/:id/logo` and `/signin-image`: a data URL produced by the cropper. */
+/** A PNG/JPEG/WebP data URL whose body is genuine base64 (the BFF also checks the file signature). */
+export const IMAGE_DATA_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+
 export const imageUploadSchema = z.object({
   dataUrl: z
     .string()
-    .regex(/^data:image\/(png|jpeg|webp);base64,/, 'Image must be PNG, JPEG or WebP')
+    .regex(IMAGE_DATA_URL, 'Image must be PNG, JPEG or WebP')
     .max(Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 100, 'Image must be 5 MB or smaller'),
 });
 export type ImageUploadRequest = z.infer<typeof imageUploadSchema>;

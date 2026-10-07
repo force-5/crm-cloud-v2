@@ -15,7 +15,7 @@
   --border: #e7e9ee;
   --border-strong: #d7dbe2;
   --text: #17202a;
-  --text-muted: #6b7280;
+  --text-muted: #5f6673; /* ≥5.2:1 on every light surface (WCAG AA); was #6b7280, 4.34:1 on surface-muted */
   --text-subtle: #8a919b;
   --primary: #f36b21;
   --primary-text: #ffffff;

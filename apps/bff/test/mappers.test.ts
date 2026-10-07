@@ -236,7 +236,7 @@ describe('errors and helpers', () => {
     });
     expect(e.statusCode).toBe(400);
     expect(e.toBody()).toEqual({
-      error: { code: 'VALIDATION', message: 'Request validation failed', fieldErrors: { name: 'must not be blank' } },
+      error: { code: 'VALIDATION', message: 'Please correct the highlighted fields.', fieldErrors: { name: 'must not be blank' } },
     });
     expect(mapVmsError(500, {}).toBody().error.code).toBe('INTERNAL');
     expect(mapVmsError(404, { message: 'No tenant' }).toBody().error.code).toBe('NOT_FOUND');

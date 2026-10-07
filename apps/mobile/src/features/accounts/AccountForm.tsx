@@ -3,6 +3,7 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-n
 import { useNavigation, useRouter } from 'expo-router';
 import { useForm, useWatch, type Path } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Trans, useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@crm/api-client';
 import {
@@ -52,6 +53,7 @@ export function toAccountFormValues(a: Account | null): AccountFormValues {
 }
 
 export function AccountForm({ account, lookups }: { account: Account | null; lookups: AccountLookups }) {
+  const { t } = useTranslation(['accounts', 'common']);
   const router = useRouter();
   const navigation = useNavigation();
   const qc = useQueryClient();
@@ -94,12 +96,12 @@ export function AccountForm({ account, lookups }: { account: Account | null; loo
       navigation.addListener('beforeRemove', (e) => {
         if (!dirtyRef.current) return;
         e.preventDefault();
-        Alert.alert('Discard changes?', 'You have unsaved changes on this account.', [
-          { text: 'Keep editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+        Alert.alert(t('common:unsaved.title'), t('common:unsaved.body'), [
+          { text: t('common:actions.stay'), style: 'cancel' },
+          { text: t('common:actions.discard'), style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
         ]);
       }),
-    [navigation],
+    [navigation, t],
   );
 
   const options = useMemo(
@@ -121,7 +123,7 @@ export function AccountForm({ account, lookups }: { account: Account | null; loo
     const n = Object.keys(errors).length;
     if (n) {
       haptics.error();
-      toast.error(`Please fix ${n} field${n === 1 ? '' : 's'} to continue`);
+      toast.error(t('common:errors.fixFieldsCount', { count: n }));
     }
   };
 
@@ -160,10 +162,10 @@ export function AccountForm({ account, lookups }: { account: Account | null; loo
         if (pendingImages.signin) {
           await api.accounts
             .uploadSigninImage(saved.id, pendingImages.signin.dataUrl)
-            .catch(() => failed.push('sign-in image'));
+            .catch(() => failed.push('signin'));
         }
         setPendingImages({});
-        if (failed.length) toast.error(`Account saved, but the ${failed.join(' and ')} failed to upload`);
+        if (failed.length) toast.error(t('toast.imagesPendingFailed'));
         dirtyRef.current = false;
         await afterSave(saved, message);
         void qc.invalidateQueries({ queryKey: queryKeys.accounts.detail(saved.id) });
@@ -176,7 +178,7 @@ export function AccountForm({ account, lookups }: { account: Account | null; loo
     } catch (err) {
       haptics.error();
       if (err instanceof ApiClientError && err.fieldErrors) applyErrors(err.fieldErrors);
-      else toast.error(errorMessage(err, 'Could not save the account'));
+      else toast.error(errorMessage(err, t('toast.saveFailed')));
     } finally {
       setSaving(null);
     }
@@ -187,7 +189,7 @@ export function AccountForm({ account, lookups }: { account: Account | null; loo
     return run(
       'draft',
       () => (account ? api.accounts.update(account.id, data) : api.accounts.create('draft', data)),
-      'Draft saved',
+      t('toast.draftSaved'),
     );
   }, onInvalid);
 
@@ -201,19 +203,19 @@ export function AccountForm({ account, lookups }: { account: Account | null; loo
     await run(
       'publish',
       () => (account ? api.accounts.publish(account.id, data) : api.accounts.create('publish', data)),
-      'Account published',
+      t('toast.published', { name: data.name }),
     );
     setConfirmPublish(null);
   };
 
   const saveChanges = handleSubmit((data) => {
     if (!account || !fullValidation(data)) return;
-    return run('update', () => api.accounts.update(account.id, data), 'Changes saved');
+    return run('update', () => api.accounts.update(account.id, data), t('toast.saved'));
   }, onInvalid);
 
   function onInvalid() {
     haptics.error();
-    toast.error('Please check the highlighted fields');
+    toast.error(t('common:errors.fixFields'));
   }
 
   const cancelEdit = () => {
@@ -233,25 +235,24 @@ export function AccountForm({ account, lookups }: { account: Account | null; loo
           {state !== 'new' && canEdit && !editing ? (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text tone="muted" variant="small">
-                Viewing account details
+                {t('detail.viewing')}
               </Text>
-              <Button title="Edit" icon="create-outline" size="sm" variant="secondary" onPress={() => setEditing(true)} />
+              <Button title={t('common:actions.edit')} icon="create-outline" size="sm" variant="secondary" onPress={() => setEditing(true)} />
             </View>
           ) : null}
           {state === 'draft' && editing ? (
             <Notice tone="warning" icon="document-text-outline">
-              This account is a draft. Only the company name is needed to save it; publishing requires every
-              required field.
+              {t('detail.draftNotice')}
             </Notice>
           ) : null}
 
-          <FormSection title="Company">
-            <FormText control={control} name="name" label="Company name" required readOnly={ro} maxLength={100} />
-            <FormSelect control={control} name="languageId" label="Language" options={options.languages} readOnly={ro} />
+          <FormSection title={t('sections.company')}>
+            <FormText control={control} name="name" label={t('fields.name')} required readOnly={ro} maxLength={100} />
+            <FormSelect control={control} name="languageId" label={t('fields.language')} options={options.languages} readOnly={ro} />
             <FormSelect
               control={control}
               name="timeZoneName"
-              label="Time zone"
+              label={t('fields.timeZone')}
               options={options.timeZones}
               readOnly={ro}
               searchable
@@ -260,40 +261,40 @@ export function AccountForm({ account, lookups }: { account: Account | null; loo
               <FormSelect
                 control={control}
                 name="labelVerticalId"
-                label="Label preset"
+                label={t('fields.labelPreset')}
                 options={options.labels}
-                noneLabel="None"
+                noneLabel={t('common:select.none')}
                 readOnly={ro || state === 'registered'}
-                helper={state === 'registered' ? undefined : 'Applied when the account is published'}
+                helper={state === 'registered' ? undefined : t('fields.labelPresetHint')}
               />
             ) : null}
             <FormMultiSelect
               control={control}
               name="frameworkIds"
-              label="Frameworks"
+              label={t('fields.frameworks')}
               options={options.frameworks}
               readOnly={ro}
-              helper="Drives which kiosks and areas are created at publish"
+              helper={t('fields.frameworksHint')}
             />
-            <FormSwitch control={control} name="requireMfa" label="Require 2-factor authentication" disabled={ro} />
+            <FormSwitch control={control} name="requireMfa" label={t('fields.requireMfa')} disabled={ro} />
             {state === 'registered' ? (
               <FormSwitch
                 control={control}
                 name="active"
-                label="Active"
-                description="Inactive accounts can't sign in"
+                label={t('fields.active')}
+                description={t('fields.activeHint')}
                 disabled={ro}
               />
             ) : null}
           </FormSection>
 
-          <FormSection title="Administrator" subtitle="The main contact. Their email becomes the admin login.">
-            <FormText control={control} name="mainContactFirstName" label="First name" readOnly={ro} textContentType="givenName" autoComplete="given-name" maxLength={50} />
-            <FormText control={control} name="mainContactLastName" label="Last name" readOnly={ro} textContentType="familyName" autoComplete="family-name" maxLength={50} />
+          <FormSection title={t('sections.administrator')} subtitle={t('sections.administratorHint')}>
+            <FormText control={control} name="mainContactFirstName" label={t('fields.firstName')} readOnly={ro} textContentType="givenName" autoComplete="given-name" maxLength={50} />
+            <FormText control={control} name="mainContactLastName" label={t('fields.lastName')} readOnly={ro} textContentType="familyName" autoComplete="family-name" maxLength={50} />
             <FormText
               control={control}
               name="mainContactEmail"
-              label="Email"
+              label={t('fields.email')}
               readOnly={ro}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -301,14 +302,14 @@ export function AccountForm({ account, lookups }: { account: Account | null; loo
               textContentType="emailAddress"
               maxLength={100}
             />
-            <FormText control={control} name="mainContactMobile" label="Mobile" readOnly={ro} keyboardType="phone-pad" textContentType="telephoneNumber" helper="e.g. +1 555 123 4567" />
-            <FormText control={control} name="mainContactPhone" label="Office phone" readOnly={ro} keyboardType="phone-pad" textContentType="telephoneNumber" />
+            <FormText control={control} name="mainContactMobile" label={t('fields.mobile')} readOnly={ro} keyboardType="phone-pad" textContentType="telephoneNumber" helper={t('fields.mobileHint')} />
+            <FormText control={control} name="mainContactPhone" label={t('fields.phone')} readOnly={ro} keyboardType="phone-pad" textContentType="telephoneNumber" />
           </FormSection>
 
-          <FormSection title="Address">
-            <FormSelect control={control} name="countryId" label="Country" options={options.countries} readOnly={ro} searchable />
-            <FormText control={control} name="address" label="Address" readOnly={ro} textContentType="fullStreetAddress" maxLength={200} />
-            <FormText control={control} name="city" label="City" readOnly={ro} textContentType="addressCity" maxLength={100} />
+          <FormSection title={t('sections.address')}>
+            <FormSelect control={control} name="countryId" label={t('common:address.country')} options={options.countries} readOnly={ro} searchable />
+            <FormText control={control} name="address" label={t('common:address.address')} readOnly={ro} textContentType="fullStreetAddress" maxLength={200} />
+            <FormText control={control} name="city" label={t('common:address.city')} readOnly={ro} textContentType="addressCity" maxLength={100} />
             {rule.usesStates ? (
               <FormSelect control={control} name="stateId" label={rule.stateLabel} options={options.states} readOnly={ro} searchable />
             ) : null}
@@ -339,19 +340,19 @@ export function AccountForm({ account, lookups }: { account: Account | null; loo
         <ActionBar>
           {state === 'new' ? (
             <>
-              <Button title="Save as draft" variant="secondary" flex loading={saving === 'draft'} disabled={saving !== null} onPress={saveDraft} />
-              <Button title="Publish" icon="paper-plane-outline" flex loading={saving === 'publish'} disabled={saving !== null} onPress={requestPublish} />
+              <Button title={t('actions.saveAsDraft')} variant="secondary" flex loading={saving === 'draft'} disabled={saving !== null} onPress={saveDraft} />
+              <Button title={t('actions.publish')} icon="paper-plane-outline" flex loading={saving === 'publish'} disabled={saving !== null} onPress={requestPublish} />
             </>
           ) : state === 'draft' ? (
             <>
-              <Button title="Cancel" variant="ghost" onPress={cancelEdit} disabled={saving !== null} />
-              <Button title="Save draft" variant="secondary" flex loading={saving === 'draft'} disabled={saving !== null} onPress={saveDraft} />
-              <Button title="Publish" icon="paper-plane-outline" flex loading={saving === 'publish'} disabled={saving !== null} onPress={requestPublish} />
+              <Button title={t('common:actions.cancel')} variant="ghost" onPress={cancelEdit} disabled={saving !== null} />
+              <Button title={t('actions.saveDraft')} variant="secondary" flex loading={saving === 'draft'} disabled={saving !== null} onPress={saveDraft} />
+              <Button title={t('actions.publish')} icon="paper-plane-outline" flex loading={saving === 'publish'} disabled={saving !== null} onPress={requestPublish} />
             </>
           ) : (
             <>
-              <Button title="Cancel" variant="secondary" flex onPress={cancelEdit} disabled={saving !== null} />
-              <Button title="Save changes" flex loading={saving === 'update'} onPress={saveChanges} />
+              <Button title={t('common:actions.cancel')} variant="secondary" flex onPress={cancelEdit} disabled={saving !== null} />
+              <Button title={t('actions.saveChanges')} flex loading={saving === 'update'} onPress={saveChanges} />
             </>
           )}
         </ActionBar>
@@ -359,20 +360,23 @@ export function AccountForm({ account, lookups }: { account: Account | null; loo
 
       <ConfirmSheet
         visible={!!confirmPublish}
-        title="Publish this account?"
-        confirmLabel="Publish"
+        title={t('publish.title', { name: confirmPublish?.name ?? '' })}
+        confirmLabel={t('publish.confirm')}
         loading={saving === 'publish'}
         onCancel={() => setConfirmPublish(null)}
         onConfirm={publish}
         message={
           <View style={{ gap: 10 }}>
             <Text>
-              The welcome email with login credentials will be sent to{' '}
-              <Text weight="bold">{String(confirmPublish?.mainContactEmail ?? '')}</Text>.
+              <Trans
+                t={t}
+                i18nKey="publish.welcome"
+                values={{ email: String(confirmPublish?.mainContactEmail ?? '') }}
+                components={{ b: <Text weight="bold" /> }}
+              />
             </Text>
             <Text tone="muted" variant="small">
-              Publishing creates the administrator user, the facility with kiosks and areas for the selected
-              frameworks, and the default KIOSK and ADMIN licenses. It can't be undone.
+              {t('publish.summary')}
             </Text>
           </View>
         }

@@ -1,21 +1,29 @@
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
-/** Orange rounded "F5" square (prototype .mark). */
+/**
+ * Orange rounded "F5" square (prototype .mark). The glyphs are drawn as SVG so the mark is a logo image,
+ * which WCAG exempts from text contrast; as styled HTML text, white on brand orange (3.0:1) failed axe.
+ * Decorative: the "FORCE 5" wordmark beside it carries the name.
+ */
 export function BrandMark({ size = 'md', className }: { size?: 'sm' | 'md' | 'lg'; className?: string }) {
   const { t } = useTranslation();
   return (
     <span
       aria-hidden="true"
       className={cn(
-        'grid shrink-0 place-items-center rounded-[9px] bg-primary font-black leading-none text-white dark:text-primary-text',
-        size === 'sm' && 'size-8 text-[16px]',
-        size === 'md' && 'size-[34px] text-[18px]',
-        size === 'lg' && 'size-11 rounded-[10px] text-[22px]',
+        'grid shrink-0 place-items-center rounded-[9px] bg-primary text-white dark:text-primary-text',
+        size === 'sm' && 'size-8',
+        size === 'md' && 'size-[34px]',
+        size === 'lg' && 'size-11 rounded-[10px]',
         className,
       )}
     >
-      {t('brand.mark')}
+      <svg viewBox="0 0 100 100" className="size-full" focusable="false">
+        <text x="50" y="54" textAnchor="middle" dominantBaseline="middle" fill="currentColor" fontSize="52" fontWeight="900">
+          {t('brand.mark')}
+        </text>
+      </svg>
     </span>
   );
 }

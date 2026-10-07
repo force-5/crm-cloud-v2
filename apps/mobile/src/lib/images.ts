@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { MAX_IMAGE_BYTES } from '@crm/contracts';
+import i18n from './i18n';
 
 export type PickedImage = { uri: string; dataUrl: string };
 
@@ -14,7 +15,7 @@ type PickOptions = {
 
 export class ImageTooLargeError extends Error {
   constructor() {
-    super('Image must be 5 MB or smaller');
+    super(i18n.t('common:image.tooLarge'));
   }
 }
 
@@ -53,7 +54,7 @@ export async function pickAndPrepareImage({ size, format = 'jpeg', compress = 0.
     format: format === 'png' ? SaveFormat.PNG : SaveFormat.JPEG,
     compress: format === 'png' ? 1 : compress,
   });
-  if (!saved.base64) throw new Error('Could not read the selected image');
+  if (!saved.base64) throw new Error(i18n.t('common:image.readFailed'));
   if ((saved.base64.length * 3) / 4 > MAX_IMAGE_BYTES) throw new ImageTooLargeError();
   return { uri: saved.uri, dataUrl: `data:image/${format};base64,${saved.base64}` };
 }

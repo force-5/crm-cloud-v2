@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import { Controller, type Control, type FieldValues, type Path } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import {
   Card,
   SelectField,
@@ -88,6 +89,7 @@ export function FormMultiSelect<T extends FieldValues, V extends string | number
   readOnly,
   helper,
 }: Base<T> & { options: readonly SelectOption<V>[]; label: string; readOnly?: boolean; helper?: string }) {
+  const { t } = useTranslation();
   return (
     <Controller
       control={control}
@@ -102,7 +104,7 @@ export function FormMultiSelect<T extends FieldValues, V extends string | number
           error={fieldState.error?.message}
           readOnly={readOnly}
           helper={helper}
-          placeholder="None selected"
+          placeholder={t('select.noneSelected')}
         />
       )}
     />

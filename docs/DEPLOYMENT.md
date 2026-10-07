@@ -69,7 +69,8 @@ aws secretsmanager create-secret --region us-east-1 --name test/crm/config \
 | `VMS_URL` | yes | VMS internal API base, ending `/internal/v1/`. |
 | `KEYCLOAK_URL` | yes | Keycloak `…/realms/` base; the realm (`gatekeeper`) is appended. |
 | `REDIS_URL` | **yes when MinInstances > 1** | Otherwise sessions are per instance and users get signed out when the ALB switches instances. Prod: use ElastiCache. Admin's Valkey cluster in us-east-2 is shared-safe, because the CRM's session keys are namespaced `crm:sess:`, but its owner should agree. us-east-1 has no ElastiCache, so test runs 1 instance. |
-| `SENTRY_DSN` | no | Not wired yet. |
+| `SENTRY_DSN` | no | Server error reporting. Events are scrubbed of cookies, headers, bodies, query strings and user data. |
+| `SENTRY_WEB_DSN` | no | The browser DSN. The BFF's `/crm/api/sentry-tunnel` forwards only to this project (and `SENTRY_DSN`'s). It must match the pipeline's `SentryWebDsn`, which is baked into the web build. |
 | `CRM_ALLOWED_ROLES`, `CRM_ALLOWED_TENANT_IDS` | no | Override the EB properties (decision D1). |
 
 ### 1.3 Deploy the environment stack
@@ -81,8 +82,10 @@ aws cloudformation deploy --region us-east-1 --stack-name crm-v2-test-environmen
     SolutionStackName="<from 1.1>" \
     VpcId=vpc-... InstanceSubnets=subnet-a,subnet-b LoadBalancerSubnets=subnet-c,subnet-d \
     CloudFrontPrefixListId=pl-... \
+    CertificateArn=arn:aws:acm:us-east-1:...:certificate/... \
     MinInstances=1 MaxInstances=1
-# prod adds: CertificateArn=arn:aws:acm:us-east-2:...  MinInstances=2 MaxInstances=4  (and REDIS_URL in the secret)
+# prod: CertificateArn in us-east-2, MinInstances=2 MaxInstances=4 (and REDIS_URL in the secret)
+# CertificateArn is required for every stage: the origin is HTTPS-only (no HTTP listener).
 ```
 
 **What it creates:**
@@ -139,7 +142,7 @@ The ALB rejects anything that isn't CloudFront. For each stage, set up a distrib
 
 **Origin**
 - The EB environment's ALB.
-- Origin protocol: **HTTPS only** in prod (needs `CertificateArn`); HTTP in test, like admin test.
+- Origin protocol: **HTTPS only**, in every stage. The ALB has no HTTP listener; over plain HTTP the BFF's `Secure` session cookie is never set and credentials would cross the internet unencrypted.
 
 **Behaviors**
 

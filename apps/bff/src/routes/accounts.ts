@@ -13,6 +13,7 @@ import {
 } from '@crm/contracts';
 import type { FastifyInstance } from 'fastify';
 import { idParam, type Deps } from '../deps';
+import { assertImageDataUrl } from '../images';
 import { AppError, parseOrThrow, validationError } from '../errors';
 import type { Vms } from '../vms/client';
 import * as licenses from '../vms/licenses';
@@ -90,6 +91,7 @@ export async function accountRoutes(app: FastifyInstance, _deps: Deps) {
     { bodyLimit: IMAGE_BODY_LIMIT, config: { audit: 'account.uploadLogo' } },
     async (req) => {
       const { dataUrl } = parseOrThrow(imageUploadSchema, req.body);
+    assertImageDataUrl(dataUrl);
       return { url: await tenants.uploadLogo(req.vms, idParam(req.params), dataUrl) };
     },
   );
@@ -99,6 +101,7 @@ export async function accountRoutes(app: FastifyInstance, _deps: Deps) {
     { bodyLimit: IMAGE_BODY_LIMIT, config: { audit: 'account.uploadSigninImage' } },
     async (req) => {
       const { dataUrl } = parseOrThrow(imageUploadSchema, req.body);
+    assertImageDataUrl(dataUrl);
       return { url: await tenants.uploadSigninImage(req.vms, idParam(req.params), dataUrl) };
     },
   );

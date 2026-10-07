@@ -27,7 +27,3 @@ export function initials(first?: string | null, last?: string | null, fallback =
 export function cityState(city?: string | null, state?: string | null): string {
   return [city, state].filter(Boolean).join(', ');
 }
-
-export function plural(n: number, one: string, many = `${one}s`): string {
-  return `${n.toLocaleString()} ${n === 1 ? one : many}`;
-}

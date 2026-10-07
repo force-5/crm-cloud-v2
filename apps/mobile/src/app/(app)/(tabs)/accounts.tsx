@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, RefreshControl, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { PERMISSIONS, hasPermission, statusFilterSchema, type AccountSummary, type StatusFilter } from '@crm/contracts';
 import {
   ActionSheet,
@@ -24,11 +25,12 @@ import { useToast } from '@/providers/ToastProvider';
 import { useDebounced } from '@/lib/useDebounced';
 import { flattenPages, totalOf } from '@/lib/paged';
 import { callPhone, sendEmail } from '@/lib/contact';
-import { plural } from '@/lib/format';
-import { STATUS_OPTIONS } from '@/lib/filters';
+import { useStatusOptions } from '@/lib/filters';
 
 export default function AccountsScreen() {
   const router = useRouter();
+  const { t } = useTranslation(['accounts', 'common']);
+  const statusOptions = useStatusOptions();
   const user = useCurrentUser();
   const toast = useToast();
   const { colors, spacing } = useTheme();
@@ -56,14 +58,12 @@ export default function AccountsScreen() {
   const confirmToggle = (a: AccountSummary) => {
     const activate = a.status !== 'active';
     Alert.alert(
-      `${activate ? 'Activate' : 'Deactivate'} account ${a.name}?`,
-      activate
-        ? 'Users of this account will be able to sign in again.'
-        : 'Users of this account will no longer be able to sign in.',
+      t(activate ? 'confirm.activateTitle' : 'confirm.deactivateTitle', { name: a.name }),
+      t(activate ? 'confirm.activateBody' : 'confirm.deactivateBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common:actions.cancel'), style: 'cancel' },
         {
-          text: activate ? 'Activate' : 'Deactivate',
+          text: t(activate ? 'common:actions.activate' : 'common:actions.deactivate'),
           style: activate ? 'default' : 'destructive',
           onPress: () => setActive.mutate({ account: a, active: activate }),
         },
@@ -73,24 +73,24 @@ export default function AccountsScreen() {
 
   const menuActions: SheetAction[] = menuFor
     ? [
-        { label: canUpdate ? 'Open / edit' : 'Open', icon: 'open-outline', onPress: () => open(menuFor) },
+        { label: canUpdate ? t('menu.openEdit') : t('menu.open'), icon: 'open-outline', onPress: () => open(menuFor) },
         ...(menuFor.mainContact.mobile
           ? [{
-              label: `Call ${menuFor.mainContact.mobile}`,
+              label: t('common:contact.call', { phone: menuFor.mainContact.mobile }),
               icon: 'call-outline' as const,
               onPress: async () => {
-                if (!(await callPhone(menuFor.mainContact.mobile!))) toast.error("This device can't place calls");
+                if (!(await callPhone(menuFor.mainContact.mobile!))) toast.error(t('common:errors.cantCall'));
               },
             }]
           : []),
         ...(menuFor.mainContact.email
-          ? [{ label: `Email ${menuFor.mainContact.email}`, icon: 'mail-outline' as const, onPress: () => void sendEmail(menuFor.mainContact.email!) }]
+          ? [{ label: t('common:contact.email', { email: menuFor.mainContact.email }), icon: 'mail-outline' as const, onPress: () => void sendEmail(menuFor.mainContact.email!) }]
           : []),
         ...(canUpdate && menuFor.status !== 'draft'
           ? [
               menuFor.status === 'active'
-                ? { label: 'Deactivate', icon: 'pause-circle-outline' as const, destructive: true, onPress: () => confirmToggle(menuFor) }
-                : { label: 'Activate', icon: 'play-circle-outline' as const, onPress: () => confirmToggle(menuFor) },
+                ? { label: t('common:actions.deactivate'), icon: 'pause-circle-outline' as const, destructive: true, onPress: () => confirmToggle(menuFor) }
+                : { label: t('common:actions.activate'), icon: 'play-circle-outline' as const, onPress: () => confirmToggle(menuFor) },
             ]
           : []),
       ]
@@ -125,11 +125,11 @@ export default function AccountsScreen() {
         ListHeaderComponent={
           <Centered style={{ padding: spacing.lg, gap: spacing.md }}>
             <ScreenHeader
-              title="Accounts"
-              subtitle={total !== undefined ? plural(total, 'account') : 'Customer accounts'}
+              title={t('list.title')}
+              subtitle={total !== undefined ? t('list.count', { count: total }) : t('list.subtitle')}
             />
-            <SearchBar value={search} onChangeText={setSearch} placeholder="Search accounts" />
-            <Segmented options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+            <SearchBar value={search} onChangeText={setSearch} placeholder={t('list.searchPlaceholder')} />
+            <Segmented options={statusOptions} value={status} onChange={setStatus} />
           </Centered>
         }
         ListEmptyComponent={
@@ -141,9 +141,9 @@ export default function AccountsScreen() {
             ) : (
               <EmptyState
                 icon="business-outline"
-                title={debounced ? 'No matching accounts' : 'No accounts here'}
-                message={debounced ? `Nothing matches "${debounced}".` : 'Try a different status filter.'}
-                actionLabel={canCreate && !debounced ? 'New account' : undefined}
+                title={debounced ? t('list.emptyFilteredTitle') : t('list.emptyTitle')}
+                message={debounced ? t('list.emptyFiltered', { search: debounced }) : t('common:empty.tryOtherStatus')}
+                actionLabel={canCreate && !debounced ? t('newAccount') : undefined}
                 onAction={() => router.push('/accounts/new')}
               />
             )}
@@ -154,12 +154,12 @@ export default function AccountsScreen() {
             <ActivityIndicator style={{ marginTop: spacing.lg }} color={colors.primary} />
           ) : items.length > 0 && !list.hasNextPage ? (
             <Text variant="caption" tone="subtle" center style={{ marginTop: spacing.lg }}>
-              That's everything
+              {t('common:table.end')}
             </Text>
           ) : null
         }
       />
-      {canCreate ? <Fab label="New account" onPress={() => router.push('/accounts/new')} /> : null}
+      {canCreate ? <Fab label={t('newAccount')} onPress={() => router.push('/accounts/new')} /> : null}
       <ActionSheet
         visible={!!menuFor}
         title={menuFor?.name}

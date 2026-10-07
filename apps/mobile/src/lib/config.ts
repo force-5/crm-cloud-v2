@@ -15,5 +15,3 @@ export const API_URL = (process.env.EXPO_PUBLIC_API_URL?.trim() || DEFAULT_API_U
 
 /** Fallback when the session doesn't tell us (plan §4.3 default). */
 export const DEFAULT_IDLE_TIMEOUT_MINUTES = 60;
-
-export const SUPPORT_NOTE = 'Internal Force 5 access only';

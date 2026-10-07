@@ -21,7 +21,8 @@ export class SecretBox {
   decrypt(box: string): string | null {
     try {
       const buf = Buffer.from(box, 'base64url');
-      const decipher = createDecipheriv('aes-256-gcm', this.key, buf.subarray(0, 12));
+      // authTagLength pins the 16-byte tag; otherwise Node accepts truncated tags.
+      const decipher = createDecipheriv('aes-256-gcm', this.key, buf.subarray(0, 12), { authTagLength: 16 });
       decipher.setAuthTag(buf.subarray(12, 28));
       return Buffer.concat([decipher.update(buf.subarray(28)), decipher.final()]).toString('utf8');
     } catch {

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Pressable, View, type TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ERROR_CODES, loginRequestSchema, type LoginRequest } from '@crm/contracts';
 import { Button, Notice, Text, TextField } from '@/components';
@@ -12,6 +13,7 @@ import { haptics } from '@/lib/haptics';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { t } = useTranslation('auth');
   const { applyLoginResult, signOutReason, clearSignOutReason } = useSession();
   const [formError, setFormError] = useState<string | null>(null);
   const passwordRef = useRef<TextInput>(null);
@@ -37,16 +39,16 @@ export default function LoginScreen() {
     } catch (err) {
       haptics.error();
       setFormError(
-        isApiError(err, ERROR_CODES.INVALID_CREDENTIALS) ? 'Incorrect email or password.' : errorMessage(err),
+        isApiError(err, ERROR_CODES.INVALID_CREDENTIALS) ? t('login.invalid') : errorMessage(err),
       );
     }
   });
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to manage Force 5 customer accounts.">
+    <AuthShell title={t('login.title')} subtitle={t('login.lead')}>
       {signOutReason === 'timeout' ? (
         <Notice tone="warning" icon="time-outline">
-          You were signed out for inactivity. Please sign in again.
+          {t('login.timeout')}
         </Notice>
       ) : null}
       {formError ? <Notice tone="danger">{formError}</Notice> : null}
@@ -56,12 +58,12 @@ export default function LoginScreen() {
         name="email"
         render={({ field }) => (
           <TextField
-            label="Email"
+            label={t('login.email')}
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
             error={errors.email?.message}
-            placeholder="you@force5.com"
+            placeholder={t('login.emailPlaceholder')}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -80,7 +82,7 @@ export default function LoginScreen() {
         render={({ field }) => (
           <TextField
             ref={passwordRef}
-            label="Password"
+            label={t('login.password')}
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
@@ -100,11 +102,11 @@ export default function LoginScreen() {
           onPress={() => router.push('/forgot-password')}
         >
           <Text tone="primary" weight="bold" variant="small">
-            Forgot password?
+            {t('login.forgot')}
           </Text>
         </Pressable>
       </View>
-      <Button title="Sign in" size="lg" full loading={isSubmitting} onPress={onSubmit} />
+      <Button title={t('login.submit')} size="lg" full loading={isSubmitting} onPress={onSubmit} />
     </AuthShell>
   );
 }

@@ -18,6 +18,7 @@ export async function registerSpa(app: FastifyInstance, config: Config): Promise
   await app.register(fastifyStatic, {
     root,
     prefix: `${config.basePath}/`,
+    dotfiles: 'deny', // never serve .env-style files even if one lands in WEB_DIST (review L1)
     index: 'index.html', // `${basePath}/` itself must serve the SPA shell (was a 403)
     wildcard: true,
     cacheControl: false, // we set Cache-Control ourselves below

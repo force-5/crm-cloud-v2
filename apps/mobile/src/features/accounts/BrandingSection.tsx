@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Image, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { queryKeys } from '@crm/api-client';
 import {
   LOGO_ASPECT,
@@ -22,20 +23,20 @@ export type PendingImages = Partial<Record<BrandingKind, PickedImage>>;
 
 const SPEC = {
   logo: {
-    title: 'Company logo',
-    hint: `${LOGO_SIZE.width}×${LOGO_SIZE.height} PNG`,
+    titleKey: 'fields.logo',
+    hintKey: 'fields.logoHint',
     aspect: LOGO_ASPECT,
     size: LOGO_SIZE,
     format: 'png' as const,
   },
   signin: {
-    title: 'Sign-in background',
-    hint: `${SIGNIN_IMAGE_SIZE.width}×${SIGNIN_IMAGE_SIZE.height} (16:9)`,
+    titleKey: 'fields.signinImage',
+    hintKey: 'fields.signinImageHint',
     aspect: SIGNIN_IMAGE_ASPECT,
     size: SIGNIN_IMAGE_SIZE,
     format: 'jpeg' as const,
   },
-};
+} as const;
 
 /**
  * Logo + sign-in image previews. Existing accounts upload immediately after the crop;
@@ -56,6 +57,7 @@ export function BrandingSection({
   pending: PendingImages;
   onPending: (kind: BrandingKind, image: PickedImage) => void;
 }) {
+  const { t } = useTranslation(['accounts', 'common']);
   const qc = useQueryClient();
   const toast = useToast();
   const [busy, setBusy] = useState<BrandingKind | null>(null);
@@ -66,13 +68,13 @@ export function BrandingSection({
     try {
       image = await pickAndPrepareImage({ size: spec.size, format: spec.format });
     } catch (err) {
-      toast.error(errorMessage(err, 'Could not process that image'));
+      toast.error(errorMessage(err, t('common:image.processFailed')));
       return;
     }
     if (!image) return;
     if (accountId === null) {
       onPending(kind, image);
-      toast.info(`${spec.title} will be uploaded when you save`);
+      toast.info(t('toast.imageQueued', { label: t(spec.titleKey) }));
       return;
     }
     setBusy(kind);
@@ -89,17 +91,17 @@ export function BrandingSection({
           : old,
       );
       haptics.success();
-      toast.success(`${spec.title} updated`);
+      toast.success(t('toast.imageUploaded', { label: t(spec.titleKey) }));
     } catch (err) {
       haptics.error();
-      toast.error(errorMessage(err, 'Upload failed'));
+      toast.error(errorMessage(err, t('common:image.uploadFailed')));
     } finally {
       setBusy(null);
     }
   };
 
   return (
-    <Card title="Branding" subtitle="Shown on the customer's sign-in page" style={{ gap: 18 }}>
+    <Card title={t('sections.branding')} subtitle={t('sections.brandingHint')} style={{ gap: 18 }}>
       <ImageSlot
         key={`logo:${pending.logo?.uri ?? logoUrl ?? ""}`}
         kind="logo"
@@ -137,6 +139,7 @@ function ImageSlot({
   busy: boolean;
   onReplace: () => void;
 }) {
+  const { t } = useTranslation(['accounts', 'common']);
   const { colors, radius } = useTheme();
   const spec = SPEC[kind];
   const [failed, setFailed] = useState(false);
@@ -145,14 +148,14 @@ function ImageSlot({
     <View style={{ gap: 8 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
-          <Text weight="bold">{spec.title}</Text>
+          <Text weight="bold">{t(spec.titleKey)}</Text>
           <Text variant="caption" tone="subtle">
-            {isPending ? 'Not uploaded yet — saves with the account' : spec.hint}
+            {isPending ? t('common:image.pending') : t(spec.hintKey, { w: spec.size.width, h: spec.size.height })}
           </Text>
         </View>
         {canEdit ? (
           <Button
-            title={uri ? 'Replace' : 'Upload'}
+            title={uri ? t('common:image.replace') : t('common:image.upload')}
             size="sm"
             variant="secondary"
             icon="image-outline"
@@ -178,7 +181,7 @@ function ImageSlot({
         {show ? (
           <Image
             source={{ uri }}
-            accessibilityLabel={`${spec.title} preview`}
+            accessibilityLabel={t('common:image.preview', { label: t(spec.titleKey) })}
             onError={() => setFailed(true)}
             resizeMode={kind === 'logo' ? 'contain' : 'cover'}
             style={{ width: kind === 'logo' ? '80%' : '100%', height: kind === 'logo' ? '80%' : '100%' }}
@@ -187,7 +190,7 @@ function ImageSlot({
           <View style={{ alignItems: 'center', gap: 4 }}>
             <Ionicons name="image-outline" size={26} color={colors.textSubtle} />
             <Text variant="caption" tone="subtle">
-              No image
+              {t('common:image.none')}
             </Text>
           </View>
         )}

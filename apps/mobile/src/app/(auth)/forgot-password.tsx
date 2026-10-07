@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import {
   ERROR_CODES,
   PASSWORD_RULES,
@@ -18,14 +19,9 @@ import { haptics } from '@/lib/haptics';
 
 type Step = 'email' | 'code' | 'password';
 
-const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
-  email: { title: 'Reset password', subtitle: "Enter your email and we'll send you a recovery code." },
-  code: { title: 'Check your email', subtitle: '' },
-  password: { title: 'Choose a new password', subtitle: 'Make it strong — you will use it to sign in.' },
-};
-
 export default function ForgotPasswordScreen() {
   const router = useRouter();
+  const { t } = useTranslation('auth');
   const toast = useToast();
   const { colors } = useTheme();
   const [step, setStep] = useState<Step>('email');
@@ -90,26 +86,26 @@ export default function ForgotPasswordScreen() {
     void run(async () => {
       await api.auth.resetPassword(parsed.data);
       haptics.success();
-      toast.success('Password updated. Sign in with your new password.');
+      toast.success(t('forgot.success'));
       router.replace('/login');
     });
   };
 
-  const copy = STEP_COPY[step];
-  const subtitle =
-    step === 'code'
-      ? `If an account exists for ${email}, we've sent a recovery code to it. Enter the code below.`
-      : copy.subtitle;
+  const copy: Record<Step, { title: string; subtitle: string }> = {
+    email: { title: t('forgot.title'), subtitle: t('forgot.emailLead') },
+    code: { title: t('forgot.codeTitle'), subtitle: t('forgot.sentNotice', { email }) },
+    password: { title: t('forgot.newPasswordTitle'), subtitle: t('forgot.newPasswordLead', { email }) },
+  };
 
   return (
-    <AuthShell back title={copy.title} subtitle={subtitle}>
+    <AuthShell back title={copy[step].title} subtitle={copy[step].subtitle}>
       <StepDots step={step} />
       {error ? <Notice tone="danger">{error}</Notice> : null}
 
       {step === 'email' ? (
         <>
           <TextField
-            label="Email"
+            label={t('forgot.email')}
             value={email}
             onChangeText={setEmail}
             error={fieldError.email}
@@ -121,14 +117,14 @@ export default function ForgotPasswordScreen() {
             onSubmitEditing={submitEmail}
             autoFocus
           />
-          <Button title="Send recovery code" size="lg" full loading={busy} onPress={submitEmail} />
+          <Button title={t('forgot.sendCode')} size="lg" full loading={busy} onPress={submitEmail} />
         </>
       ) : null}
 
       {step === 'code' ? (
         <>
           <TextField
-            label="Recovery code"
+            label={t('forgot.code')}
             value={code}
             onChangeText={setCode}
             error={fieldError.code}
@@ -139,15 +135,15 @@ export default function ForgotPasswordScreen() {
             onSubmitEditing={submitCode}
             autoFocus
           />
-          <Button title="Verify code" size="lg" full loading={busy} onPress={submitCode} />
-          <Button title="Use a different email" variant="ghost" onPress={() => setStep('email')} />
+          <Button title={t('forgot.verify')} size="lg" full loading={busy} onPress={submitCode} />
+          <Button title={t('forgot.useDifferentEmail')} variant="ghost" onPress={() => setStep('email')} />
         </>
       ) : null}
 
       {step === 'password' ? (
         <>
           <TextField
-            label="New password"
+            label={t('forgot.newPassword')}
             value={password}
             onChangeText={setPassword}
             error={fieldError.password}
@@ -156,9 +152,10 @@ export default function ForgotPasswordScreen() {
             textContentType="newPassword"
             autoFocus
           />
-          <View style={{ gap: 6 }} accessibilityLabel="Password requirements">
+          <View style={{ gap: 6 }} accessibilityLabel={t('forgot.rulesTitle')}>
             {PASSWORD_RULES.map((rule) => {
               const ok = rule.test(password);
+              const label = t(`forgot.rules.${rule.id}`, { defaultValue: rule.label });
               return (
                 <View key={rule.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Ionicons
@@ -166,15 +163,15 @@ export default function ForgotPasswordScreen() {
                     size={18}
                     color={ok ? colors.success : colors.textSubtle}
                   />
-                  <Text variant="small" tone={ok ? 'success' : 'muted'} accessibilityLabel={`${rule.label}: ${ok ? 'met' : 'not met'}`}>
-                    {rule.label}
+                  <Text variant="small" tone={ok ? 'success' : 'muted'} accessibilityLabel={t(ok ? 'forgot.ruleMet' : 'forgot.ruleUnmet', { rule: label })}>
+                    {label}
                   </Text>
                 </View>
               );
             })}
           </View>
           <TextField
-            label="Confirm new password"
+            label={t('forgot.confirmPassword')}
             value={confirm}
             onChangeText={setConfirm}
             error={fieldError.passwordConfirmation}
@@ -184,7 +181,7 @@ export default function ForgotPasswordScreen() {
             returnKeyType="done"
             onSubmitEditing={submitPassword}
           />
-          <Button title="Update password" size="lg" full loading={busy} onPress={submitPassword} />
+          <Button title={t('forgot.save')} size="lg" full loading={busy} onPress={submitPassword} />
         </>
       ) : null}
     </AuthShell>
@@ -193,10 +190,11 @@ export default function ForgotPasswordScreen() {
 
 function StepDots({ step }: { step: Step }) {
   const { colors } = useTheme();
+  const { t } = useTranslation('auth');
   const steps: Step[] = ['email', 'code', 'password'];
   const idx = steps.indexOf(step);
   return (
-    <View style={{ flexDirection: 'row', gap: 6 }} accessibilityLabel={`Step ${idx + 1} of 3`}>
+    <View style={{ flexDirection: 'row', gap: 6 }} accessibilityLabel={t('forgot.step', { n: idx + 1 })}>
       {steps.map((s, i) => (
         <View
           key={s}

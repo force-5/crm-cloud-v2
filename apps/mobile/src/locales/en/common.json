@@ -1,0 +1,96 @@
+{
+  "appName": "Force 5 CRM",
+  "brand": {
+    "name": "Force 5",
+    "product": "CRM",
+    "mark": "F5"
+  },
+  "actions": {
+    "saveChanges": "Save changes",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "done": "Done",
+    "back": "Back",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "remove": "Remove",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "clear": "Clear",
+    "retry": "Try again",
+    "discard": "Discard",
+    "stay": "Keep editing",
+    "increase": "Increase {{label}}",
+    "decrease": "Decrease {{label}}"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "draft": "Draft",
+    "new": "New",
+    "all": "All"
+  },
+  "filters": {
+    "search": "Search",
+    "clearSearch": "Clear search"
+  },
+  "table": {
+    "loading": "Loading",
+    "end": "That’s everything"
+  },
+  "empty": {
+    "noMatches": "No matches",
+    "noResultsFor": "Nothing matches “{{search}}”.",
+    "tryOtherStatus": "Try a different status filter."
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "loadFailed": "Couldn’t load this",
+    "fixFields": "Please fix the highlighted fields.",
+    "fixFieldsCount_one": "Please fix {{count}} field to continue.",
+    "fixFieldsCount_other": "Please fix {{count}} fields to continue.",
+    "cantCall": "This device can’t place calls.",
+    "noEmailApp": "No email app is set up."
+  },
+  "unsaved": {
+    "title": "Discard unsaved changes?",
+    "body": "You have changes that haven’t been saved. If you leave now they will be lost."
+  },
+  "image": {
+    "upload": "Upload",
+    "replace": "Replace",
+    "none": "No image",
+    "tooLarge": "Images must be 5 MB or smaller.",
+    "readFailed": "That image couldn’t be read.",
+    "processFailed": "That image couldn’t be processed.",
+    "uploadFailed": "Upload failed.",
+    "pending": "Will upload when the account is saved",
+    "preview": "{{label}} preview"
+  },
+  "address": {
+    "country": "Country",
+    "address": "Address",
+    "city": "City"
+  },
+  "select": {
+    "placeholder": "Select…",
+    "none": "None",
+    "noneSelected": "None selected",
+    "notSet": "not set",
+    "value": "{{label}}: {{value}}",
+    "hint": "Opens a list to choose from",
+    "search": "Search {{label}}",
+    "selected": "{{count}} selected"
+  },
+  "contact": {
+    "call": "Call {{phone}}",
+    "callMobile": "Call mobile {{phone}}",
+    "callOffice": "Call office {{phone}}",
+    "email": "Email {{email}}"
+  },
+  "a11y": {
+    "item": "{{name}}, {{status}}"
+  }
+}

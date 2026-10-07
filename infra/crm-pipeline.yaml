@@ -30,7 +30,7 @@ Parameters:
     Default: force-5/crm-cloud-v2
   Branch:
     Type: String
-    Default: main
+    Default: master
 
   EbApplication:
     Type: String
@@ -58,6 +58,17 @@ Parameters:
     Type: String
     AllowedValues: [ENABLED, DISABLED]
     Default: ENABLED
+
+  SentryWebDsn:
+    Type: String
+    Default: ''
+    Description: >-
+      Sentry DSN baked into the web build (VITE_SENTRY_DSN). Empty = browser error reporting off and the
+      SDK isn't shipped. A DSN is not a secret. Put the same value in the app secret as SENTRY_WEB_DSN, so
+      the BFF's tunnel will forward to it.
+
+Conditions:
+  IsProd: !Equals [!Ref Stage, prod]
 
 Rules:
   StageMatchesRegion:
@@ -129,6 +140,9 @@ Resources:
         Image: aws/codebuild/amazonlinux-x86_64-standard:5.0
         ComputeType: BUILD_GENERAL1_MEDIUM
         PrivilegedMode: false
+        EnvironmentVariables:
+          - { Name: VITE_SENTRY_DSN, Type: PLAINTEXT, Value: !Ref SentryWebDsn }
+          - { Name: VITE_APP_ENV, Type: PLAINTEXT, Value: !If [IsProd, production, staging] }
       Cache:
         # Speeds up pnpm installs between scheduled runs.
         Type: LOCAL

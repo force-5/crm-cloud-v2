@@ -42,7 +42,8 @@ export default defineConfig({
     },
   },
   build: {
-    sourcemap: true,
+    // Generated for error tracking, but not referenced from the bundles; buildspec also strips them (review L1).
+    sourcemap: 'hidden',
     target: 'es2022',
     // No manualChunks: hand-splitting React away from libraries that use it at module-init time
     // (radix, react-i18next…) produced a circular chunk graph and a blank page in production.

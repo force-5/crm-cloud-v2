@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Text } from '@/components';
 import { useTheme } from '@/providers/ThemeProvider';
 
@@ -20,6 +21,7 @@ export function CodeInput({
   onComplete?: (code: string) => void;
 }) {
   const { colors, radius, fonts } = useTheme();
+  const { t } = useTranslation('auth');
   const ref = useRef<TextInput>(null);
   const digits = value.split('');
 
@@ -61,7 +63,7 @@ export function CodeInput({
         textContentType="oneTimeCode"
         autoComplete="one-time-code"
         maxLength={length}
-        accessibilityLabel={`${length}-digit verification code`}
+        accessibilityLabel={t('mfa.code')}
         caretHidden
         style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0.015, color: 'transparent' }}
       />

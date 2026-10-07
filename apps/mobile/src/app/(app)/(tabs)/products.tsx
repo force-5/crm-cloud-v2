@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { PERMISSIONS, hasPermission, type Product, type StatusFilter } from '@crm/contracts';
 import {
   Badge,
@@ -23,11 +24,12 @@ import { useCurrentUser } from '@/providers/SessionProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useDebounced } from '@/lib/useDebounced';
 import { flattenPages, totalOf } from '@/lib/paged';
-import { STATUS_OPTIONS } from '@/lib/filters';
-import { plural } from '@/lib/format';
+import { useStatusOptions } from '@/lib/filters';
 
 export default function ProductsScreen() {
   const router = useRouter();
+  const { t } = useTranslation(['products', 'common']);
+  const statusOptions = useStatusOptions();
   const user = useCurrentUser();
   const { colors, spacing } = useTheme();
   const [search, setSearch] = useState('');
@@ -66,9 +68,12 @@ export default function ProductsScreen() {
         }
         ListHeaderComponent={
           <Centered style={{ padding: spacing.lg, gap: spacing.md }}>
-            <ScreenHeader title="Products" subtitle={total !== undefined ? plural(total, 'product') : 'Product catalog'} />
-            <SearchBar value={search} onChangeText={setSearch} placeholder="Search products" />
-            <Segmented options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+            <ScreenHeader
+              title={t('list.title')}
+              subtitle={total !== undefined ? t('list.count', { count: total }) : t('list.subtitle')}
+            />
+            <SearchBar value={search} onChangeText={setSearch} placeholder={t('list.searchPlaceholder')} />
+            <Segmented options={statusOptions} value={status} onChange={setStatus} />
           </Centered>
         }
         ListEmptyComponent={
@@ -80,8 +85,8 @@ export default function ProductsScreen() {
             ) : (
               <EmptyState
                 icon="cube-outline"
-                title={debounced ? 'No matching products' : 'No products here'}
-                message={debounced ? `Nothing matches "${debounced}".` : 'Try a different status filter.'}
+                title={debounced ? t('list.emptyFilteredTitle') : t('list.emptyTitle')}
+                message={debounced ? t('list.emptyFiltered', { search: debounced }) : t('common:empty.tryOtherStatus')}
               />
             )}
           </Centered>
@@ -90,15 +95,20 @@ export default function ProductsScreen() {
           list.isFetchingNextPage ? <ActivityIndicator style={{ marginTop: spacing.lg }} color={colors.primary} /> : null
         }
       />
-      {canCreate ? <Fab label="New product" onPress={() => router.push('/products/new')} /> : null}
+      {canCreate ? <Fab label={t('newProduct')} onPress={() => router.push('/products/new')} /> : null}
     </SafeAreaView>
   );
 }
 
 function ProductCard({ product: p, onPress }: { product: Product; onPress: () => void }) {
   const { colors, fonts } = useTheme();
+  const { t } = useTranslation(['products', 'common']);
   return (
-    <Card onPress={onPress} accessibilityLabel={`${p.name}, ${p.active ? 'active' : 'inactive'}`} style={{ gap: 6 }}>
+    <Card
+      onPress={onPress}
+      accessibilityLabel={t('common:a11y.item', { name: p.name, status: t(p.active ? 'common:status.active' : 'common:status.inactive') })}
+      style={{ gap: 6 }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
         <Text variant="h2" style={{ flex: 1 }} numberOfLines={2}>
           {p.name}
@@ -111,7 +121,7 @@ function ProductCard({ product: p, onPress }: { product: Product; onPress: () =>
           {p.description}
         </Text>
       ) : (
-        <Badge label="N/A" />
+        <Badge label={t('list.na')} />
       )}
       <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
         {p.productCode ? (

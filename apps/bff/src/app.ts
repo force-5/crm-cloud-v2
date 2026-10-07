@@ -17,6 +17,7 @@ import { createErrorReporter } from './observability';
 import { accountRoutes } from './routes/accounts';
 import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
+import { sentryTunnelRoutes } from './routes/sentry-tunnel';
 import { licenseRoutes } from './routes/licenses';
 import { lookupRoutes } from './routes/lookups';
 import { productRoutes } from './routes/products';
@@ -87,6 +88,8 @@ export async function buildApp(config: Config, opts: BuildOptions = {}): Promise
   app.decorateRequest('vms', null as never);
   app.addHook('onSend', async (req, reply) => {
     reply.header('x-request-id', req.id);
+    // API responses carry personal and account data: never cache them in browsers or proxies (review L2).
+    if (req.url.startsWith(config.apiPrefix) && !reply.hasHeader('cache-control')) reply.header('Cache-Control', 'no-store');
   });
 
   await app.register(helmet, {
@@ -95,7 +98,7 @@ export async function buildApp(config: Config, opts: BuildOptions = {}): Promise
     crossOriginEmbedderPolicy: false,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   });
-  await registerSession(app, config);
+  const shared = await registerSession(app, config);
   await app.register(rateLimit, {
     global: false,
     errorResponseBuilder: () =>
@@ -137,9 +140,10 @@ export async function buildApp(config: Config, opts: BuildOptions = {}): Promise
     keycloak,
     vmsClient,
     secretBox: new SecretBox(config.sessionSecret),
+    shared,
     requireAuth: requireAuth({ config, keycloak, vmsClient }),
-    loginLimiter: new KeyedLimiter(config.rateLimit.loginPerEmail, 15 * 60_000),
-    recoveryLimiter: new KeyedLimiter(config.rateLimit.loginPerEmail, 15 * 60_000),
+    loginLimiter: new KeyedLimiter(shared, 'login', config.rateLimit.loginPerEmail, 15 * 60_000),
+    recoveryLimiter: new KeyedLimiter(shared, 'recovery', config.rateLimit.loginPerEmail, 15 * 60_000),
   };
 
   // ---- /api ---------------------------------------------------------------------------
@@ -182,6 +186,8 @@ export async function buildApp(config: Config, opts: BuildOptions = {}): Promise
     },
     { prefix: config.apiPrefix },
   );
+  // Outside the CSRF-checked /api scope on purpose (see routes/sentry-tunnel.ts). Only exists when Sentry is configured.
+  await sentryTunnelRoutes(app, config);
 
   const spa = await registerSpa(app, config);
 

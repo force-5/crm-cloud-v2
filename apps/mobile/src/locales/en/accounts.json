@@ -1,0 +1,96 @@
+{
+  "newAccount": "New Account",
+  "list": {
+    "title": "Accounts",
+    "subtitle": "Customer accounts",
+    "count_one": "{{count, number}} account",
+    "count_other": "{{count, number}} accounts",
+    "searchPlaceholder": "Search accounts…",
+    "emptyTitle": "No accounts here",
+    "emptyFilteredTitle": "No matching accounts",
+    "emptyFiltered": "No accounts match “{{search}}”."
+  },
+  "card": {
+    "noContact": "No main contact yet",
+    "created": "Created {{date}}"
+  },
+  "menu": {
+    "label": "Actions for {{name}}",
+    "open": "Open",
+    "openEdit": "Open / edit"
+  },
+  "confirm": {
+    "deactivateTitle": "Deactivate account {{name}}?",
+    "deactivateBody": "Users of this account will no longer be able to sign in until it is activated again.",
+    "activateTitle": "Activate account {{name}}?",
+    "activateBody": "Users of this account will be able to sign in again."
+  },
+  "toast": {
+    "activated": "{{name}} activated",
+    "deactivated": "{{name}} deactivated",
+    "updateFailed": "Couldn’t update the account.",
+    "draftSaved": "Draft saved",
+    "published": "{{name}} published — the welcome email is on its way",
+    "saved": "Changes saved",
+    "saveFailed": "Couldn’t save the account.",
+    "imageUploaded": "{{label}} updated",
+    "imageQueued": "{{label}} will be uploaded when you save",
+    "imagesPendingFailed": "The account was saved, but an image upload failed. Open the account to try again."
+  },
+  "detail": {
+    "crumb": "Account",
+    "newTitle": "New Account",
+    "registered": "Registered {{date}} by {{who}}",
+    "registeredNoBy": "Registered {{date}}",
+    "notPublished": "Not published yet · created {{date}}",
+    "invalidLink": "That account link is not valid.",
+    "viewing": "Viewing account details",
+    "tabs": {
+      "details": "Details",
+      "licenses": "Licenses"
+    },
+    "draftNotice": "This account is a draft. Only the company name is needed to save it; publishing requires every required field."
+  },
+  "actions": {
+    "saveAsDraft": "Save as draft",
+    "saveDraft": "Save draft",
+    "publish": "Publish",
+    "saveChanges": "Save changes"
+  },
+  "sections": {
+    "company": "Company",
+    "administrator": "Administrator",
+    "administratorHint": "The main contact becomes the account’s first administrator.",
+    "address": "Address",
+    "branding": "Branding",
+    "brandingHint": "Shown on the customer’s sign-in page"
+  },
+  "fields": {
+    "name": "Company name",
+    "language": "Language",
+    "timeZone": "Time zone",
+    "labelPreset": "Label preset",
+    "labelPresetHint": "Applied when the account is published",
+    "frameworks": "Frameworks",
+    "frameworksHint": "Drives which kiosks and areas are created at publish.",
+    "requireMfa": "Require 2-factor authentication",
+    "active": "Active account",
+    "activeHint": "Allow this tenant to use the platform",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "mobile": "Mobile",
+    "mobileHint": "e.g. +1 555 123 4567",
+    "phone": "Office phone",
+    "logo": "Company logo",
+    "logoHint": "{{w}} × {{h}} PNG",
+    "signinImage": "Sign-in background",
+    "signinImageHint": "{{w}} × {{h}} (16:9)"
+  },
+  "publish": {
+    "title": "Publish {{name}}?",
+    "welcome": "The welcome email with login credentials will be sent to <b>{{email}}</b>.",
+    "summary": "Publishing creates the administrator user, the facility with kiosks and areas for the selected frameworks, and the default KIOSK and ADMIN licenses. It can’t be undone.",
+    "confirm": "Publish account"
+  }
+}

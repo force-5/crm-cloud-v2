@@ -1,5 +1,7 @@
+import * as React from 'react';
 import type { ReactNode } from 'react';
 import { Link, useRouter, type ErrorComponentProps } from '@tanstack/react-router';
+import { reportError } from '@/lib/sentry';
 import { useQueryErrorResetBoundary } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Compass, ShieldAlert, TriangleAlert } from 'lucide-react';
@@ -59,6 +61,7 @@ export function ForbiddenPage() {
 /** Route error boundary page (never redirects — the old app looped here). */
 export function RouteErrorPage({ error, reset }: ErrorComponentProps) {
   const { t } = useTranslation('shell');
+  React.useEffect(() => reportError(error), [error]);
   const router = useRouter();
   const queryReset = useQueryErrorResetBoundary();
   const retry = () => {

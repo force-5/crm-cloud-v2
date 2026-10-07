@@ -26,9 +26,6 @@
       },
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
     "plugins": [
       "expo-router",
       "expo-font",
@@ -40,7 +37,10 @@
           "imageWidth": 120,
           "resizeMode": "contain",
           "backgroundColor": "#151a21",
-          "dark": { "image": "./assets/splash-icon.png", "backgroundColor": "#0b0f14" }
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#0b0f14"
+          }
         }
       ],
       [
@@ -54,6 +54,10 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "platforms": [
+      "ios",
+      "android"
+    ]
   }
 }

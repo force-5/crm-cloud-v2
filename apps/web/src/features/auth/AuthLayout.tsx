@@ -25,7 +25,7 @@ function LoginArt() {
               [t('visual.drafts'), '7'],
             ].map(([label, n]) => (
               <div key={label} className="h-16 rounded-lg bg-[#f5f6f8] p-2.5">
-                <span className="text-[12px] text-[#6b7280]">{label}</span>
+                <span className="text-[12px] text-[#5b6270]">{label}</span>
                 <b className="mt-[5px] block text-[19px]">{n}</b>
               </div>
             ))}

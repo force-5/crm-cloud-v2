@@ -30,7 +30,9 @@ phases:
       - pnpm typecheck
       - pnpm test
       - echo "Building SPA and BFF..."
-      - pnpm --filter @crm/web build
+      # Release tag = the commit being built (Sentry groups errors by it). VITE_SENTRY_DSN comes from the
+      # CodeBuild project's environment (infra/crm-pipeline.yaml); empty = Sentry off and not shipped.
+      - VITE_RELEASE="$CODEBUILD_RESOLVED_SOURCE_VERSION" pnpm --filter @crm/web build
       - pnpm --filter @crm/bff build
       - echo "Creating EB source bundle..."
       - rm -rf eb-bundle && mkdir -p eb-bundle
@@ -43,6 +45,7 @@ phases:
       - rm -f eb-bundle/web/*.map eb-bundle/web/assets/*.map
       # Non-secret default so the bundled SPA is served; an EB property of the same name wins.
       - echo "WEB_DIST=web" > eb-bundle/.env
+      - echo "RELEASE=$CODEBUILD_RESOLVED_SOURCE_VERSION" >> eb-bundle/.env
       - 'printf "web: node --env-file-if-exists=.env dist/server.js\n" > eb-bundle/Procfile'
       - cp -r .platform eb-bundle/ 2>/dev/null || true
       # Startup smoke gate — BLOCKING. Boots the exact bundle bytes about to ship with a production

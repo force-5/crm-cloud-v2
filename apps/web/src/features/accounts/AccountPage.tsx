@@ -311,16 +311,23 @@ function AccountEditor({
         formActions={tab === 'details'}
       />
 
-      <Tabs value={tab} onValueChange={(v) => onTabChange(v === 'licenses' ? 'licenses' : 'details')}>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => {
+          // The Licenses tab stays focusable while unavailable (so its tooltip can explain why); never activate it.
+          if (v === 'licenses' && licensesDisabled) return;
+          onTabChange(v === 'licenses' ? 'licenses' : 'details');
+        }}
+      >
         <TabsList aria-label={t('detail.tabs.label')}>
           <TabsTrigger value="details">{t('detail.tabs.details')}</TabsTrigger>
           {licensesDisabled ? (
+            // aria-disabled, not `disabled`: a disabled button can't show a tooltip, and wrapping it in a
+            // focusable <span> put an invalid child inside the tablist (axe aria-required-children).
             <Tooltip content={t('detail.tabs.licensesDisabled')}>
-              <span tabIndex={0} className="inline-flex">
-                <TabsTrigger value="licenses" disabled>
-                  {t('detail.tabs.licenses')}
-                </TabsTrigger>
-              </span>
+              <TabsTrigger value="licenses" aria-disabled="true" className="cursor-not-allowed opacity-50 hover:text-text-muted">
+                {t('detail.tabs.licenses')}
+              </TabsTrigger>
             </Tooltip>
           ) : (
             <TabsTrigger value="licenses">{t('detail.tabs.licenses')}</TabsTrigger>

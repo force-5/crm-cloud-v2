@@ -1,6 +1,7 @@
 import { createApi, ApiClientError } from '@crm/api-client';
 import { ERROR_CODES } from '@crm/contracts';
 import { API_URL } from './config';
+import i18n from './i18n';
 
 let unauthorizedHandler: (() => void) | null = null;
 
@@ -22,7 +23,7 @@ export const api = createApi({
 export { ApiClientError };
 
 /** Human message for any thrown error. */
-export function errorMessage(err: unknown, fallback = 'Something went wrong'): string {
+export function errorMessage(err: unknown, fallback = i18n.t('common:errors.generic')): string {
   if (err instanceof ApiClientError) return err.message || fallback;
   if (err instanceof Error && err.message) return err.message;
   return fallback;

@@ -1,11 +1,13 @@
 import { Tabs } from 'expo-router/js-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { PERMISSIONS, hasPermission } from '@crm/contracts';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useSession } from '@/providers/SessionProvider';
 
 export default function TabsLayout() {
   const { colors, fonts } = useTheme();
+  const { t } = useTranslation('shell');
   const { user } = useSession();
   const canAccounts = hasPermission(user, PERMISSIONS.ACCOUNTS);
   const canProducts = hasPermission(user, PERMISSIONS.PRODUCTS);
@@ -24,7 +26,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: t('nav.dashboard'),
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'grid' : 'grid-outline'} size={size} color={color} />
           ),
@@ -33,7 +35,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="accounts"
         options={{
-          title: 'Accounts',
+          title: t('nav.accounts'),
           href: canAccounts ? undefined : null,
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'business' : 'business-outline'} size={size} color={color} />
@@ -43,7 +45,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="products"
         options={{
-          title: 'Products',
+          title: t('nav.products'),
           href: canProducts ? undefined : null,
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'cube' : 'cube-outline'} size={size} color={color} />
@@ -53,7 +55,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: t('nav.profile'),
           tabBarIcon: ({ color, focused, size }) => (
             <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} size={size} color={color} />
           ),

@@ -126,9 +126,13 @@ describe('profile', () => {
     expect(lastCall(/\/users\/101$/)).toBeUndefined(); // real VMS 500s on themeName
     expect((await c.get('/profile')).json.user.themeName).toBe('dark'); // survives a profile refresh
 
-    const m = await c.patch('/profile/preferences', { mfaEnabled: false, mfaType: 'totp' });
+    const m = await c.patch('/profile/preferences', { mfaEnabled: false, mfaType: 'sms' });
     expect(m.status).toBe(200);
-    expect(lastCall(/\/users\/101$/)).toMatchObject({ method: 'PATCH', body: { mfaEnabled: false, mfaType: 'totp' } });
+    expect(lastCall(/\/users\/101$/)).toMatchObject({ method: 'PATCH', body: { mfaEnabled: false, mfaType: 'sms' } });
+    // Authenticator apps are refused until VMS verifies their codes (V4, review L6).
+    const totpPref = await c.patch('/profile/preferences', { mfaType: 'totp' });
+    expect(totpPref.status).toBe(400);
+    expect(totpPref.json.error.fieldErrors.mfaType).toMatch(/V4/);
     expect((await c.patch('/profile/preferences', {})).status).toBe(400);
   });
 
@@ -140,7 +144,9 @@ describe('profile', () => {
     expect((await c.get('/profile')).json.user.profileImageUrl).toBeUndefined();
 
     const totp = await c.post('/profile/mfa/totp');
-    expect(totp.json).toEqual({ uri: expect.stringMatching(/^otpauth:\/\/totp\//), secret: 'JBSWY3DPEHPK3PXP' });
-    expect(lastCall(/registerTotp$/)?.body).toEqual({ identifier: 'admin@force5.com' });
+    // TOTP enrolment is off until VMS change V4 (review L6): refused without calling VMS.
+    expect(totp.status).toBe(501);
+    expect(totp.json.error.code).toBe('NOT_SUPPORTED');
+    expect(lastCall(/registerTotp$/)).toBeUndefined();
   });
 });

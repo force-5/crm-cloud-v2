@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Linking, View } from 'react-native';
 import Constants from 'expo-constants';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@crm/api-client';
 import {
@@ -40,16 +41,13 @@ import { fullName, initials } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { pickAndPrepareImage } from '@/lib/images';
 
-const THEME_OPTIONS = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
-] as const;
+/**
+ * Authenticator apps stay off until VMS change V4: VMS doesn't verify TOTP codes yet, so enabling it would
+ * make MFA accept any code. The BFF refuses it too (security review L6). Flip together with the web app.
+ */
+const TOTP_ENABLED = false;
 
-const MFA_OPTIONS = [
-  { value: 'sms', label: 'Text message' },
-  { value: 'totp', label: 'Authenticator app' },
-] as const;
+const THEME_VALUES = ['light', 'dark', 'system'] as const satisfies ReadonlyArray<ThemeName>;
 
 function toValues(u: CurrentUser): ProfileFormValues {
   return {
@@ -67,10 +65,12 @@ function toValues(u: CurrentUser): ProfileFormValues {
 }
 
 export default function ProfileScreen() {
+  const { t } = useTranslation(['profile', 'shell', 'common']);
   const sessionUser = useCurrentUser();
   const { signOut, updateUser } = useSession();
   const { preference, setPreference } = useTheme();
   const toast = useToast();
+  const themeOptions = useMemo(() => THEME_VALUES.map((value) => ({ value, label: t(`shell:theme.${value}`) })), [t]);
   const qc = useQueryClient();
   const profile = useQuery({ queryKey: queryKeys.profile, queryFn: api.profile.get });
   // Show values from the API (plan §6.6), falling back to the session copy while loading.
@@ -95,26 +95,26 @@ export default function ProfileScreen() {
       const { profileImageUrl } = await api.profile.uploadPhoto(img.dataUrl);
       syncUser({ profileImageUrl });
       haptics.success();
-      toast.success('Photo updated');
+      toast.success(t('photo.uploaded'));
     } catch (err) {
       haptics.error();
-      toast.error(errorMessage(err, 'Could not update your photo'));
+      toast.error(errorMessage(err, t('photo.failed')));
     } finally {
       setPhotoBusy(false);
     }
   };
   const removePhoto = () =>
-    Alert.alert('Remove your photo?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('photo.removeTitle'), t('photo.removeBody'), [
+      { text: t('common:actions.cancel'), style: 'cancel' },
       {
-        text: 'Remove',
+        text: t('common:actions.remove'),
         style: 'destructive',
         onPress: async () => {
           setPhotoBusy(true);
           try {
             await api.profile.removePhoto();
             syncUser({ profileImageUrl: undefined });
-            toast.success('Photo removed');
+            toast.success(t('photo.removed'));
           } catch (err) {
             toast.error(errorMessage(err));
           } finally {
@@ -124,15 +124,15 @@ export default function ProfileScreen() {
       },
     ]);
 
-  const changeTheme = (t: ThemeName) => {
-    setPreference(t); // applied instantly and cached on the device
-    prefs.mutate({ themeName: t }, { onError: () => toast.error('Theme saved on this device only') });
+  const changeTheme = (theme: ThemeName) => {
+    setPreference(theme); // applied instantly and cached on the device
+    prefs.mutate({ themeName: theme }, { onError: () => toast.error(t('shell:theme.saveFailed')) });
   };
 
   const confirmSignOut = () =>
-    Alert.alert('Sign out?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => void signOut('manual') },
+    Alert.alert(t('shell:signOut.title'), undefined, [
+      { text: t('common:actions.cancel'), style: 'cancel' },
+      { text: t('shell:signOut.confirm'), style: 'destructive', onPress: () => void signOut('manual') },
     ]);
 
   return (
@@ -142,7 +142,7 @@ export default function ProfileScreen() {
       refreshing={profile.isRefetching}
       onRefresh={() => profile.refetch()}
     >
-      <ScreenHeader title="Profile" />
+      <ScreenHeader title={t('title')} />
 
       <Card style={{ alignItems: 'center', gap: 10 }}>
         <Avatar uri={user.profileImageUrl} initials={initials(user.firstName, user.lastName)} size={88} />
@@ -161,9 +161,9 @@ export default function ProfileScreen() {
           </View>
         ) : null}
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Button title={user.profileImageUrl ? 'Change photo' : 'Add photo'} icon="camera-outline" size="sm" variant="secondary" loading={photoBusy} onPress={changePhoto} />
+          <Button title={user.profileImageUrl ? t('photo.change') : t('photo.add')} icon="camera-outline" size="sm" variant="secondary" loading={photoBusy} onPress={changePhoto} />
           {user.profileImageUrl ? (
-            <Button title="Remove" size="sm" variant="ghost" disabled={photoBusy} onPress={removePhoto} />
+            <Button title={t('common:actions.remove')} size="sm" variant="ghost" disabled={photoBusy} onPress={removePhoto} />
           ) : null}
         </View>
       </Card>
@@ -183,13 +183,13 @@ export default function ProfileScreen() {
 
       <SecurityCard user={user} onChange={(body) => prefs.mutateAsync(body)} />
 
-      <Card title="Appearance" subtitle="Applies to this app on all your devices">
-        <Segmented options={THEME_OPTIONS} value={preference} onChange={changeTheme} />
+      <Card title={t('appearance.title')} subtitle={t('appearance.hint')}>
+        <Segmented options={themeOptions} value={preference} onChange={changeTheme} />
       </Card>
 
-      <Button title="Sign out" variant="danger" icon="log-out-outline" full onPress={confirmSignOut} />
+      <Button title={t('shell:signOut.confirm')} variant="danger" icon="log-out-outline" full onPress={confirmSignOut} />
       <Text variant="caption" tone="subtle" center>
-        Force 5 CRM {Constants.expoConfig?.version ?? ''}
+        {t('shell:version', { version: Constants.expoConfig?.version ?? '' })}
         {__DEV__ ? `\n${API_URL}` : ''}
       </Text>
     </Screen>
@@ -197,6 +197,7 @@ export default function ProfileScreen() {
 }
 
 function ProfileForm({ data, onSaved }: { data: ProfileResponse; onSaved: (r: ProfileResponse) => void }) {
+  const { t } = useTranslation(['profile', 'shell', 'common']);
   const toast = useToast();
   const [saving, setSaving] = useState(false);
   const { control, handleSubmit, reset, setError, formState } = useForm<ProfileFormValues, unknown, ProfileFormData>({
@@ -225,32 +226,32 @@ function ProfileForm({ data, onSaved }: { data: ProfileResponse; onSaved: (r: Pr
       const r = await api.profile.update(values);
       onSaved(r);
       haptics.success();
-      toast.success('Profile saved');
+      toast.success(t('saved'));
     } catch (err) {
       haptics.error();
       if (err instanceof ApiClientError && err.fieldErrors) {
         for (const [k, m] of Object.entries(err.fieldErrors)) setError(k as keyof ProfileFormValues, { message: m });
-      } else toast.error(errorMessage(err, 'Could not save your profile'));
+      } else toast.error(errorMessage(err, t('saveFailed')));
     } finally {
       setSaving(false);
     }
   });
 
   return (
-    <FormSection title="Your details">
-      <FormText control={control} name="firstName" label="First name" required textContentType="givenName" maxLength={50} />
-      <FormText control={control} name="lastName" label="Last name" required textContentType="familyName" maxLength={50} />
-      <FormText control={control} name="mobilePhone" label="Mobile" keyboardType="phone-pad" textContentType="telephoneNumber" />
-      <FormText control={control} name="address" label="Address" textContentType="fullStreetAddress" maxLength={200} />
-      <FormText control={control} name="city" label="City" textContentType="addressCity" maxLength={100} />
-      <FormSelect control={control} name="countryId" label="Country" options={options.countries} searchable />
+    <FormSection title={t('details')}>
+      <FormText control={control} name="firstName" label={t('fields.firstName')} required textContentType="givenName" maxLength={50} />
+      <FormText control={control} name="lastName" label={t('fields.lastName')} required textContentType="familyName" maxLength={50} />
+      <FormText control={control} name="mobilePhone" label={t('fields.mobilePhone')} keyboardType="phone-pad" textContentType="telephoneNumber" />
+      <FormText control={control} name="address" label={t('common:address.address')} textContentType="fullStreetAddress" maxLength={200} />
+      <FormText control={control} name="city" label={t('common:address.city')} textContentType="addressCity" maxLength={100} />
+      <FormSelect control={control} name="countryId" label={t('common:address.country')} options={options.countries} searchable />
       {rule.usesStates ? (
         <FormSelect control={control} name="stateId" label={rule.stateLabel} options={options.states} searchable />
       ) : null}
       <FormText control={control} name="postalCode" label={rule.postalLabel} helper={rule.postalHint} autoCapitalize="characters" maxLength={20} />
-      <FormSelect control={control} name="languageId" label="Language" options={options.languages} />
-      <FormSelect control={control} name="timeZoneName" label="Time zone" options={options.timeZones} searchable />
-      <Button title="Save profile" full loading={saving} disabled={!formState.isDirty} onPress={save} />
+      <FormSelect control={control} name="languageId" label={t('fields.language')} options={options.languages} />
+      <FormSelect control={control} name="timeZoneName" label={t('fields.timeZone')} options={options.timeZones} searchable />
+      <Button title={t('save')} full loading={saving} disabled={!formState.isDirty} onPress={save} />
     </FormSection>
   );
 }
@@ -262,8 +263,17 @@ function SecurityCard({
   user: CurrentUser;
   onChange: (body: PreferencesRequest) => Promise<unknown>;
 }) {
+  const { t } = useTranslation(['profile', 'shell', 'common']);
   const toast = useToast();
   const locked = user.tenant.requireMfa;
+  const mfaOptions = useMemo(
+    () =>
+      [
+        { value: 'sms', label: t('security.smsShort') },
+        { value: 'totp', label: t('security.totpShort'), disabled: !TOTP_ENABLED },
+      ] as const satisfies ReadonlyArray<{ value: MfaType; label: string; disabled?: boolean }>,
+    [t],
+  );
   const enabled = locked || user.mfaEnabled;
   const [busy, setBusy] = useState(false);
   const [totp, setTotp] = useState<TotpEnrollment | null>(null);
@@ -277,7 +287,7 @@ function SecurityCard({
       return true;
     } catch (err) {
       haptics.error();
-      toast.error(errorMessage(err, 'Could not update two-factor settings'));
+      toast.error(errorMessage(err, t('security.updateFailed')));
       return false;
     } finally {
       setBusy(false);
@@ -286,44 +296,50 @@ function SecurityCard({
 
   const chooseMethod = async (type: MfaType) => {
     if (type === 'sms' && !user.mobilePhone) {
-      toast.error('Add a mobile number to your profile first');
+      toast.error(t('security.smsNeedsPhone'));
       return;
     }
     if (type === 'totp') {
+      if (!TOTP_ENABLED) return;
       try {
         setTotp(await api.profile.enrollTotp());
       } catch (err) {
-        toast.error(errorMessage(err, 'Could not start authenticator setup'));
+        toast.error(errorMessage(err, t('security.totpStartFailed')));
         return;
       }
     } else setTotp(null);
-    await apply({ mfaEnabled: true, mfaType: type }, 'Two-factor method updated');
+    await apply({ mfaEnabled: true, mfaType: type }, t('security.methodSaved'));
   };
 
   return (
-    <Card title="Security" subtitle="Two-factor authentication" style={{ gap: 14 }}>
-      {locked ? <Notice tone="info" icon="shield-checkmark-outline">Required by your organization</Notice> : null}
+    <Card title={t('security.title')} subtitle={t('security.mfaTitle')} style={{ gap: 14 }}>
+      {locked ? <Notice tone="info" icon="shield-checkmark-outline">{t('security.required')}</Notice> : null}
       <SwitchRow
-        label="Two-factor authentication"
-        description="Ask for a code when you sign in"
+        label={t('security.mfaEnable')}
+        description={t('security.mfaHint')}
         value={enabled}
         disabled={locked || busy}
         onValueChange={(v) =>
           void apply(
             v ? { mfaEnabled: true, mfaType: user.mfaType ?? 'sms' } : { mfaEnabled: false },
-            v ? 'Two-factor authentication on' : 'Two-factor authentication off',
+            v ? t('security.enabled') : t('security.disabled'),
           )
         }
       />
       {enabled ? (
         <View style={{ gap: 8 }}>
           <Text variant="label" tone="muted">
-            Method
+            {t('security.method')}
           </Text>
-          <Segmented options={MFA_OPTIONS} value={user.mfaType ?? 'sms'} onChange={(t) => void chooseMethod(t)} disabled={busy} />
+          <Segmented options={mfaOptions} value={user.mfaType ?? 'sms'} onChange={(t) => void chooseMethod(t)} disabled={busy} />
+          {!TOTP_ENABLED ? (
+            <Text variant="small" tone="muted">
+              {t('security.totpUnavailable')}
+            </Text>
+          ) : null}
           {(user.mfaType ?? 'sms') === 'sms' ? (
             <Text variant="small" tone="muted">
-              {user.mobilePhone ? `Codes are texted to ${user.mobilePhone}.` : 'Add a mobile number to receive codes.'}
+              {user.mobilePhone ? t('security.smsTo', { phone: user.mobilePhone }) : t('security.smsNoPhone')}
             </Text>
           ) : null}
         </View>
@@ -331,16 +347,16 @@ function SecurityCard({
       {totp ? (
         <View style={{ gap: 8 }}>
           <Text variant="small">
-            Add Force 5 CRM to your authenticator app, or enter this key manually:
+            {t('security.totpManual')}
           </Text>
           <Text selectable weight="black" style={{ letterSpacing: 2 }}>
             {totp.secret}
           </Text>
           <Button
-            title="Open authenticator app"
+            title={t('security.totpOpen')}
             icon="key-outline"
             variant="secondary"
-            onPress={() => Linking.openURL(totp.uri).catch(() => toast.error('No authenticator app found'))}
+            onPress={() => Linking.openURL(totp.uri).catch(() => toast.error(t('security.totpNoApp')))}
           />
         </View>
       ) : null}

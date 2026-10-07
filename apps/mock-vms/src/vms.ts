@@ -17,6 +17,16 @@ export type VmsOptions = {
   publicUrl: string;
   /** When false, `POST tenant/setup/publish/{id}` 404s like the real VMS today (V3). */
   supportPublishDraft: boolean;
+  /**
+   * Reproduce the real-VMS BUGS that break features (docs/VMS_CHANGE_REQUESTS.md), so the CRM's
+   * handling of them can be tested: V2 draft create 500s and leaves an orphan tenant, V14 product
+   * categories come back with null fields, V15 PATCH users/{id} {themeName} 500s. (V3 is
+   * supportPublishDraft.) Off by default so `pnpm dev` stays usable for demos.
+   *
+   * Real-VMS response SHAPES (duplicate codeless roles, nested role codes, entity sort paths) and DB
+   * constraints (VARCHAR(25) product fields, NOT NULL category) are always reproduced, bug flag or not.
+   */
+  realBugs: boolean;
   log: (msg: string) => void;
 };
 
@@ -224,7 +234,31 @@ export function registerVms(app: FastifyInstance, db: Db, keys: KeyMaterial, opt
     facilities: null,
   });
 
-  const userDto = (u: User, withTenant = true) => {
+  /**
+   * Real VMS returns roles in a different shape per endpoint (verified against local vmsServer 2026-10-06):
+   * - `authenticate`: AuthSecurityRoleDto {code,name,shortDisplay}, but every role appears TWICE — once
+   *   auto-mapped from TenantSecurityRole with `code: null`, once built explicitly — and securityRoles is [].
+   * - `signedInUser` (and user PUT/PATCH responses): the TenantSecurityRole entity, code nested at
+   *   `securityRole.code`.
+   */
+  const rolesFor = (u: User, shape: 'authenticate' | 'entity') =>
+    shape === 'authenticate'
+      ? u.roles.flatMap((r) => [
+          { code: null, name: r.name, shortDisplay: null },
+          { code: r.code, name: r.name, shortDisplay: r.shortDisplay },
+        ])
+      : u.roles.map((r, i) => ({
+          id: 300 + i,
+          token: null,
+          name: r.name,
+          shortDisplay: null,
+          securityRole: { id: i + 1, token: null, code: r.code, description: r.name, name: r.name, shortDisplay: r.shortDisplay, securityPermissions: [] },
+          active: true,
+          isSystem: false,
+          securityRolePermissions: [],
+        }));
+
+  const userDto = (u: User, withTenant = true, shape: 'authenticate' | 'entity' = 'entity') => {
     const t = db.tenants.find((x) => x.id === u.tenantId)!;
     return {
       id: u.id,
@@ -250,8 +284,10 @@ export function registerVms(app: FastifyInstance, db: Db, keys: KeyMaterial, opt
       persona: null,
       personaId: null,
       sidebarOpen: true,
-      roles: u.roles,
-      securityRoles: u.roles,
+      roles: rolesFor(u, shape),
+      securityRoles: [],
+      // Real VMS leaks the pending recovery code in user responses (F5); the BFF must never forward it.
+      passwordRecoveryCode: u.passwordRecoveryCode ?? null,
       notifyViaEmail: true,
       notifyViaSMS: false,
       securityPermissions: u.permissions,
@@ -277,7 +313,8 @@ export function registerVms(app: FastifyInstance, db: Db, keys: KeyMaterial, opt
     productCode: p.productCode,
     productVersion: p.productVersion,
     productSku: p.productSku,
-    productCategory: category(p.productCategoryId),
+    // V14: ModelMapper drops the category on the way out.
+    productCategory: opts.realBugs ? null : category(p.productCategoryId),
     productCategoryId: p.productCategoryId,
     active: p.active,
     createdBy: p.createdBy,
@@ -392,7 +429,7 @@ export function registerVms(app: FastifyInstance, db: Db, keys: KeyMaterial, opt
         );
         // Real VMS quirk (V11): bad credentials => HTTP 200 with an EMPTY body.
         if (!user) return reply.code(200).header('Content-Type', 'application/json').send('');
-        return { user: userDto(user) };
+        return { user: userDto(user, true, 'authenticate') };
       });
 
       vms.post('/auth/sendMfaCode', async (req) => {
@@ -488,7 +525,11 @@ export function registerVms(app: FastifyInstance, db: Db, keys: KeyMaterial, opt
         const user = db.users.find((u) => u.id === Number((req.params as { id: string }).id));
         if (!user) return reply.code(404).send();
         const b = (req.body ?? {}) as Record<string, unknown>;
-        if ('themeName' in b) user.themeName = b.themeName as string;
+        if ('themeName' in b) {
+          // V15: VMS calls user.setThemeName(), which doesn't exist (the field is themeMode) → 500.
+          if (opts.realBugs) return apiError(reply, 500, 'INTERNAL_ERROR', 'An unexpected error occurred. Please try again later.');
+          user.themeName = b.themeName as string;
+        }
         if ('mfaType' in b) user.mfaType = b.mfaType as string;
         if ('mfaEnabled' in b) user.mfaEnabled = Boolean(b.mfaEnabled);
         if ('active' in b) user.active = Boolean(b.active);
@@ -643,6 +684,8 @@ export function registerVms(app: FastifyInstance, db: Db, keys: KeyMaterial, opt
         const dto = (req.body ?? {}) as Record<string, unknown>;
         if (!validateTenant(reply, dto, null, false)) return reply;
         const t = newTenant(dto, req.principal!.email);
+        // V2: TenantSetupDto/TenantDto GroovyCastException AFTER the tenant row is saved → 500 + orphan.
+        if (opts.realBugs) return apiError(reply, 500, 'INTERNAL_ERROR', 'An unexpected error occurred. Please try again later.');
         return { tenant: tenantDto(t), supportingLists: supportingLists() };
       });
 
@@ -805,7 +848,12 @@ export function registerVms(app: FastifyInstance, db: Db, keys: KeyMaterial, opt
       });
 
       // ---- products --------------------------------------------------------
-      const productLists = () => ({ productCategories: db.productCategories });
+      // V14: every category comes back with null fields (ModelMapper TypeToken bug).
+      const productLists = () => ({
+        productCategories: opts.realBugs
+          ? db.productCategories.map(() => ({ id: null, code: null, description: null, active: false }))
+          : db.productCategories,
+      });
       vms.get('/products', async (req, reply) =>
         paged(reply, req.query as Query, db.products, {
           search: (p) => [p.name, p.description, p.productCode, p.productSku],
@@ -843,6 +891,21 @@ export function registerVms(app: FastifyInstance, db: Db, keys: KeyMaterial, opt
         const catId = b.productCategoryId ?? (b.productCategory as { id?: number } | undefined)?.id;
         if (catId !== undefined) p.productCategoryId = catId === null ? null : Number(catId);
       };
+      /** saleable_product: name/description/code/sku/version are VARCHAR(25); category is NOT NULL (F6). */
+      const productDbConstraints = (reply: FastifyReply, p: Product) => {
+        for (const k of ['name', 'description', 'productCode', 'productSku', 'productVersion'] as const) {
+          if ((p[k] ?? '').length > 25) {
+            const column = k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+            apiError(reply, 409, 'DUPLICATE_ENTRY', `Data truncation: Data too long for column '${column}' at row 1`);
+            return false;
+          }
+        }
+        if (p.productCategoryId == null) {
+          apiError(reply, 409, 'DUPLICATE_ENTRY', "Column 'product_category_id' cannot be null");
+          return false;
+        }
+        return true;
+      };
       const validateProduct = (reply: FastifyReply, b: Record<string, unknown>, selfId: number | null) => {
         const errors: { field: string; message: string }[] = [];
         if (!b.name || !String(b.name).trim()) errors.push({ field: 'name', message: 'must not be blank' });
@@ -865,6 +928,7 @@ export function registerVms(app: FastifyInstance, db: Db, keys: KeyMaterial, opt
           createdBy: req.principal!.email, dateCreated: now(), updatedBy: null, lastUpdated: null,
         };
         applyProduct(p, b);
+        if (!productDbConstraints(reply, p)) return reply;
         db.products.push(p);
         // Every saleable product gets a SUBSCRIPTION product license so it can be assigned.
         db.productLicenses.push({ id: Math.max(...db.productLicenses.map((x) => x.id)) + 1, productId: p.id, licenseType: 'SUBSCRIPTION', active: true });
@@ -876,6 +940,9 @@ export function registerVms(app: FastifyInstance, db: Db, keys: KeyMaterial, opt
         if (!p) return apiError(reply, 404, 'NOT_FOUND', 'No product found');
         const b = (req.body ?? {}) as Record<string, unknown>;
         if (!validateProduct(reply, { name: p.name, ...b }, p.id)) return reply;
+        const next = { ...p };
+        applyProduct(next, b);
+        if (!productDbConstraints(reply, next)) return reply;
         applyProduct(p, b);
         p.updatedBy = req.principal!.email;
         p.lastUpdated = now();

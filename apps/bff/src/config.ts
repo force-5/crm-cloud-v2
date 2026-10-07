@@ -18,6 +18,7 @@ const withSlash = (s: string) => (s.endsWith('/') ? s : `${s}/`);
 const envSchema = z
   .object({
     APP_ENV: z.enum(['local', 'dev', 'staging', 'production']).default('local'),
+    NODE_ENV: z.string().optional(),
     PORT: z.coerce.number().int().positive().default(8082),
     HOST: z.string().default('0.0.0.0'),
     BASE_PATH: z
@@ -33,9 +34,13 @@ const envSchema = z
     X_APP_ID: z.string().default('CRM_001'),
     SESSION_SECRET: z.string().optional(),
     SESSION_IDLE_MINUTES: z.coerce.number().int().positive().default(60),
+    /** Absolute session lifetime, however active the user is (review L7). */
+    SESSION_MAX_HOURS: z.coerce.number().positive().default(12),
     REDIS_URL: z.string().optional(),
     WEB_DIST: z.string().optional(),
     SENTRY_DSN: z.string().optional(),
+    /** DSN the web app is built with (VITE_SENTRY_DSN); the Sentry tunnel forwards to it. */
+    SENTRY_WEB_DSN: z.string().optional(),
     CRM_ALLOWED_TENANT_IDS: csv('1').pipe(z.array(z.string().regex(/^\d+$/, 'must be numeric ids').transform(Number))),
     // Decision D1. VMS has no CRM permission codes today, so access is granted by role.
     CRM_ALLOWED_ROLES: csv('CRM_ADMIN,ROLE_ADMIN'),
@@ -59,6 +64,11 @@ const envSchema = z
   .superRefine((env, ctx) => {
     if (!env.SESSION_SECRET && env.APP_ENV !== 'local') {
       ctx.addIssue({ code: 'custom', path: ['SESSION_SECRET'], message: 'SESSION_SECRET is required unless APP_ENV=local' });
+    }
+    // Fail closed (review L4): a production runtime that forgot APP_ENV would otherwise run as `local` —
+    // repo session secret, insecure cookie, no HSTS, no proxy trust.
+    if (env.APP_ENV === 'local' && env.NODE_ENV === 'production') {
+      ctx.addIssue({ code: 'custom', path: ['APP_ENV'], message: 'APP_ENV must be set (not local) when NODE_ENV=production' });
     }
     for (const key of ['VMS_URL', 'KEYCLOAK_URL'] as const) {
       if (!env[key] && env.APP_ENV !== 'local') {
@@ -106,9 +116,11 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     appId: e.X_APP_ID,
     sessionSecret: e.SESSION_SECRET ?? DEV_SESSION_SECRET,
     sessionIdleMinutes: e.SESSION_IDLE_MINUTES,
+    sessionMaxMs: e.SESSION_MAX_HOURS * 3_600_000,
     redisUrl: e.REDIS_URL || undefined,
     webDist: e.WEB_DIST || undefined,
     sentryDsn: e.SENTRY_DSN || undefined,
+    sentryWebDsn: e.SENTRY_WEB_DSN || undefined,
     crm: {
       allowedTenantIds: e.CRM_ALLOWED_TENANT_IDS,
       allowedRoles: e.CRM_ALLOWED_ROLES,

@@ -50,7 +50,7 @@ export const light: ColorScheme = {
   border: '#e7e9ee',
   borderStrong: '#d7dbe2',
   text: '#17202a',
-  textMuted: '#6b7280',
+  textMuted: '#5f6673', // ≥5.2:1 on every light surface (WCAG AA); was #6b7280
   textSubtle: '#8a919b',
   primary: brand.orange,
   primaryText: '#ffffff',

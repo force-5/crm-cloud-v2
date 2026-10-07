@@ -31,13 +31,15 @@ describe('my profile', () => {
     expect(screen.getByText('Required by your organization')).toBeInTheDocument();
   });
 
-  it('enrols an authenticator app with a client-rendered QR code and manual key', async () => {
+  it('offers authenticator apps only once VMS can verify them (V4): disabled and explained', async () => {
     resetDb({ user: makeUser({ mfaEnabled: true, mfaType: 'sms' }) });
     const { user } = renderApp('/profile?tab=security');
-    await user.click(await screen.findByRole('radio', { name: 'Authenticator app (TOTP)' }));
-    expect(await screen.findByText('JBSWY3DPEHPK3PXP')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /I’ve added it/ }));
-    await waitFor(() => expect(db.user.mfaType).toBe('totp'));
+    const totp = await screen.findByRole('radio', { name: 'Authenticator app (TOTP)' });
+    expect(totp).toBeDisabled();
+    expect(screen.getByText(/VMS update .change V4./)).toBeInTheDocument();
+    await user.click(totp);
+    expect(screen.queryByText('JBSWY3DPEHPK3PXP')).not.toBeInTheDocument();
+    expect(db.user.mfaType).toBe('sms');
   });
 
   it('links to Forgot password instead of a change-password form', async () => {

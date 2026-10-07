@@ -1,0 +1,49 @@
+{
+  "title": "My Profile",
+  "photo": {
+    "add": "Add photo",
+    "change": "Change photo",
+    "removeTitle": "Remove your photo?",
+    "removeBody": "Your initials will be shown instead.",
+    "uploaded": "Profile photo updated",
+    "removed": "Profile photo removed",
+    "failed": "Couldn’t update your photo."
+  },
+  "details": "Your details",
+  "fields": {
+    "firstName": "First name",
+    "lastName": "Last name",
+    "mobilePhone": "Mobile phone",
+    "language": "Language",
+    "timeZone": "Time zone"
+  },
+  "save": "Save profile",
+  "saved": "Profile saved",
+  "saveFailed": "Couldn’t save your profile.",
+  "security": {
+    "title": "Security",
+    "mfaTitle": "Two-factor authentication",
+    "mfaEnable": "Enable 2-factor authentication",
+    "mfaHint": "Add an extra layer of protection to your account.",
+    "required": "Required by your organization",
+    "method": "Method",
+    "smsShort": "Text message",
+    "totpShort": "Authenticator app",
+    "smsTo": "Codes are sent to {{phone}}.",
+    "smsNoPhone": "Add a mobile phone number to receive codes.",
+    "smsNeedsPhone": "Add a mobile phone number to your profile first.",
+    "enabled": "Two-factor authentication turned on",
+    "disabled": "Two-factor authentication turned off",
+    "methodSaved": "Verification method updated",
+    "updateFailed": "Couldn’t update two-factor settings.",
+    "totpStartFailed": "Couldn’t start authenticator setup.",
+    "totpManual": "Add Force 5 CRM to your authenticator app, or enter this key manually:",
+    "totpOpen": "Open authenticator app",
+    "totpNoApp": "No authenticator app found.",
+    "totpUnavailable": "Authenticator apps aren’t available yet — they need a VMS update (change V4). Use text-message codes for now."
+  },
+  "appearance": {
+    "title": "Theme",
+    "hint": "Applies to this app on all your devices"
+  }
+}

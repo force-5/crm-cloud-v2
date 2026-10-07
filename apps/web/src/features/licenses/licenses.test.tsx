@@ -20,7 +20,7 @@ describe('licenses tab', () => {
     await user.click(screen.getByRole('button', { name: 'Add license' }));
     const dialog = await screen.findByRole('dialog', { name: 'Add license' });
 
-    await user.click(within(dialog).getByRole('button', { name: /^Product/ }));
+    await user.click(within(dialog).getByRole('combobox', { name: /^Product/ }));
     const listbox = await screen.findByRole('listbox');
     // Already-assigned products are excluded.
     expect(within(listbox).queryByText(/ExpectSafe Admin/)).not.toBeInTheDocument();

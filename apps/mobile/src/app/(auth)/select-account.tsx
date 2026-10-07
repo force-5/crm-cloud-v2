@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { F5Mark, Notice, Text } from '@/components';
 import { AuthShell } from '@/features/auth/AuthShell';
 import { useSession } from '@/providers/SessionProvider';
@@ -11,6 +12,7 @@ import { haptics } from '@/lib/haptics';
 
 export default function SelectAccountScreen() {
   const router = useRouter();
+  const { t } = useTranslation('auth');
   const { pending, applyLoginResult } = useSession();
   const { colors, radius } = useTheme();
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -34,16 +36,16 @@ export default function SelectAccountScreen() {
   };
 
   return (
-    <AuthShell back title="Choose an account" subtitle="Your login has access to more than one account.">
+    <AuthShell back title={t('selectAccount.title')} subtitle={t('selectAccount.lead')}>
       {error ? <Notice tone="danger">{error}</Notice> : null}
       <View style={{ gap: 10 }}>
-        {pending.accounts.map((t) => (
+        {pending.accounts.map((account) => (
           <Pressable
-            key={t.id}
+            key={account.id}
             accessibilityRole="button"
-            accessibilityLabel={`Sign in to ${t.name}`}
+            accessibilityLabel={t('selectAccount.choose', { name: account.name })}
             disabled={busyId !== null}
-            onPress={() => choose(t.id)}
+            onPress={() => choose(account.id)}
             style={({ pressed }) => ({
               flexDirection: 'row',
               alignItems: 'center',
@@ -53,14 +55,14 @@ export default function SelectAccountScreen() {
               borderWidth: 1,
               borderColor: colors.border,
               backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
-              opacity: busyId !== null && busyId !== t.id ? 0.5 : 1,
+              opacity: busyId !== null && busyId !== account.id ? 0.5 : 1,
             })}
           >
             <F5Mark size={30} />
             <Text weight="bold" style={{ flex: 1 }}>
-              {t.name}
+              {account.name}
             </Text>
-            {busyId === t.id ? (
+            {busyId === account.id ? (
               <ActivityIndicator color={colors.primary} />
             ) : (
               <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />

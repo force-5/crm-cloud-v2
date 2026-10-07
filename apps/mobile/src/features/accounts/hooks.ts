@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@crm/api-client';
+import { useTranslation } from 'react-i18next';
 import type { AccountDetailResponse, AccountSummary, StatusFilter } from '@crm/contracts';
 import { api, errorMessage } from '@/lib/api';
 import { PAGE_SIZE, nextPageParam, patchInfiniteItem, restoreSnapshot } from '@/lib/paged';
@@ -27,6 +28,7 @@ export function useAccountDetail(id: number | 'new') {
 export function useSetAccountActive() {
   const qc = useQueryClient();
   const toast = useToast();
+  const { t } = useTranslation('accounts');
   return useMutation({
     mutationFn: ({ account, active }: { account: Pick<AccountSummary, 'id' | 'name'>; active: boolean }) =>
       api.accounts.setActive(account.id, active),
@@ -49,11 +51,11 @@ export function useSetAccountActive() {
       restoreSnapshot(qc, ctx?.listSnap);
       if (ctx?.detailPrev) qc.setQueryData(ctx.detailKey, ctx.detailPrev);
       haptics.error();
-      toast.error(errorMessage(err, 'Could not update the account'));
+      toast.error(errorMessage(err, t('toast.updateFailed')));
     },
     onSuccess: (_res, { account, active }) => {
       haptics.success();
-      toast.success(`${account.name} ${active ? 'activated' : 'deactivated'}`);
+      toast.success(t(active ? 'toast.activated' : 'toast.deactivated', { name: account.name }));
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.accounts.all });

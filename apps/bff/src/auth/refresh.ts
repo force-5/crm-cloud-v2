@@ -13,10 +13,11 @@ const inflight = new Map<string, Promise<TokenSet>>();
  * if the access token has ≤5 minutes left, run the refresh_token grant with the session's tenant_id.
  * A failed refresh ends the session (401).
  */
-export async function ensureFreshToken(req: FastifyRequest, keycloak: KeycloakClient): Promise<void> {
+/** Returns true when the tokens were refreshed during this call. */
+export async function ensureFreshToken(req: FastifyRequest, keycloak: KeycloakClient): Promise<boolean> {
   const auth = req.session.auth;
   if (!auth) throw unauthenticated();
-  if (auth.expiresAt - Date.now() > REFRESH_WINDOW_MS) return;
+  if (auth.expiresAt - Date.now() > REFRESH_WINDOW_MS) return false;
 
   if (auth.refreshExpiresAt && auth.refreshExpiresAt <= Date.now()) {
     await req.session.destroy();
@@ -33,6 +34,7 @@ export async function ensureFreshToken(req: FastifyRequest, keycloak: KeycloakCl
     const tokens = await p;
     req.session.auth = { ...auth, ...tokens };
     req.log.debug({ tenantId: auth.tenantId }, 'access token refreshed');
+    return true;
   } catch (err) {
     req.log.info({ err }, 'token refresh failed; ending session');
     await req.session.destroy();

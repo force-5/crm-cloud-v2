@@ -33,31 +33,41 @@ const vmsErrorBody = z
     code: z.string().nullish(),
     message: z.string().nullish(),
     error: z.string().nullish(),
+    correlationId: z.string().nullish(),
     errors: z.array(z.object({ field: z.string().nullish(), message: z.string().nullish() })).nullish(),
   })
   .partial();
 
-/** Turn a VMS error response into the BFF envelope, passing the HTTP status through. */
+/** Field names we let through from VMS validation errors: plain identifiers only. */
+const FIELD_NAME = /^[A-Za-z][A-Za-z0-9_.]{0,63}$/;
+/** Per-field VMS messages are short validator texts ("must not be blank"); cap them anyway. */
+const clip = (m: string) => (m.length > 120 ? `${m.slice(0, 117)}…` : m);
+
+/**
+ * Turn a VMS error response into the BFF envelope, passing the HTTP status through.
+ * VMS's own top-level message is NOT forwarded: it can carry internals such as database column names
+ * ("Data too long for column 'name'"), entity names, or whether a record exists (review L3). Users get a
+ * fixed message per status, plus per-field messages for allow-listed field names.
+ */
 export function mapVmsError(status: number, body: unknown): AppError {
   const parsed = vmsErrorBody.safeParse(body);
   const b = parsed.success ? parsed.data : {};
   const fieldErrors: Record<string, string> = {};
   for (const e of b.errors ?? []) {
-    if (e.field) fieldErrors[e.field] ??= e.message ?? 'Invalid value';
+    if (e.field && FIELD_NAME.test(e.field)) fieldErrors[e.field] ??= clip(e.message ?? 'Invalid value');
   }
-  const vmsMessage = b.message ?? b.error ?? undefined;
   switch (status) {
     case 400:
     case 422:
-      return new AppError(400, ERROR_CODES.VALIDATION, vmsMessage ?? 'The request was rejected.', fieldErrors);
+      return new AppError(400, ERROR_CODES.VALIDATION, 'Please correct the highlighted fields.', fieldErrors);
     case 401:
       return new AppError(401, ERROR_CODES.UNAUTHENTICATED, 'Your session has expired. Please sign in again.');
     case 403:
       return new AppError(403, ERROR_CODES.FORBIDDEN, 'You do not have permission to do that.');
     case 404:
-      return new AppError(404, ERROR_CODES.NOT_FOUND, vmsMessage ?? 'Not found');
+      return new AppError(404, ERROR_CODES.NOT_FOUND, 'That record could not be found.');
     case 409:
-      return new AppError(409, ERROR_CODES.CONFLICT, vmsMessage ?? 'The record was changed or is in use.');
+      return new AppError(409, ERROR_CODES.CONFLICT, 'That change conflicts with existing data, or the record is in use.');
     case 429:
       return new AppError(429, ERROR_CODES.RATE_LIMITED, 'Too many requests. Please wait and try again.');
     default:
@@ -126,7 +136,13 @@ export class VmsClient {
     }
 
     if (!res.ok) {
-      this.log.warn({ method, path: url.pathname, status: res.status, body: json ?? text.slice(0, 300) }, 'VMS error');
+      // Log the VMS error code and correlation id (to find it in VMS logs), never the body: it can echo
+      // user input or internals (review L3).
+      const eb = vmsErrorBody.safeParse(json);
+      this.log.warn(
+        { method, path: url.pathname, status: res.status, vmsCode: eb.success ? eb.data.code : undefined, correlationId: eb.success ? eb.data.correlationId : undefined },
+        'VMS error',
+      );
       throw mapVmsError(res.status, json);
     }
     if (!opts.schema) return undefined as Result<S>;

@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import type { AccountSummary } from '@crm/contracts';
 import { Card, IconButton, StatusBadge, Text, type IconName } from '@/components';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export const AccountCard = memo(function AccountCard({ account, onPress, onMore }: Props) {
+  const { t } = useTranslation(['accounts', 'common']);
   const { colors } = useTheme();
   const toast = useToast();
   const c = account.mainContact;
@@ -22,17 +24,17 @@ export const AccountCard = memo(function AccountCard({ account, onPress, onMore 
   const location = cityState(account.city, account.state);
 
   const call = async (phone: string) => {
-    if (!(await callPhone(phone))) toast.error("This device can't place calls");
+    if (!(await callPhone(phone))) toast.error(t('common:errors.cantCall'));
   };
   const email = async (address: string) => {
-    if (!(await sendEmail(address))) toast.error('No email app is set up');
+    if (!(await sendEmail(address))) toast.error(t('common:errors.noEmailApp'));
   };
 
   return (
     <Card
       onPress={() => onPress(account)}
       onLongPress={onMore ? () => onMore(account) : undefined}
-      accessibilityLabel={`${account.name}, ${account.status}`}
+      accessibilityLabel={t('common:a11y.item', { name: account.name, status: t(`common:status.${account.status}`) })}
       style={{ gap: 8 }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
@@ -43,7 +45,7 @@ export const AccountCard = memo(function AccountCard({ account, onPress, onMore 
           <StatusBadge status={account.status} />
         </View>
         {onMore ? (
-          <IconButton icon="ellipsis-horizontal" label={`Actions for ${account.name}`} onPress={() => onMore(account)} />
+          <IconButton icon="ellipsis-horizontal" label={t('menu.label', { name: account.name })} onPress={() => onMore(account)} />
         ) : null}
       </View>
 
@@ -51,22 +53,22 @@ export const AccountCard = memo(function AccountCard({ account, onPress, onMore 
         <View style={{ gap: 2 }}>
           {contactName ? <Text weight="bold">{contactName}</Text> : null}
           {c.email ? (
-            <ContactLink icon="mail-outline" label={c.email} onPress={() => email(c.email!)} a11y={`Email ${c.email}`} />
+            <ContactLink icon="mail-outline" label={c.email} onPress={() => email(c.email!)} a11y={t('common:contact.email', { email: c.email })} />
           ) : null}
         </View>
       ) : (
         <Text variant="small" tone="subtle">
-          No main contact yet
+          {t('card.noContact')}
         </Text>
       )}
 
       {c.mobile || c.phone ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 2 }}>
           {c.mobile ? (
-            <ContactLink icon="phone-portrait-outline" label={c.mobile} onPress={() => call(c.mobile!)} a11y={`Call mobile ${c.mobile}`} />
+            <ContactLink icon="phone-portrait-outline" label={c.mobile} onPress={() => call(c.mobile!)} a11y={t('common:contact.callMobile', { phone: c.mobile })} />
           ) : null}
           {c.phone ? (
-            <ContactLink icon="call-outline" label={c.phone} onPress={() => call(c.phone!)} a11y={`Call office ${c.phone}`} />
+            <ContactLink icon="call-outline" label={c.phone} onPress={() => call(c.phone!)} a11y={t('common:contact.callOffice', { phone: c.phone })} />
           ) : null}
         </View>
       ) : null}
@@ -79,7 +81,7 @@ export const AccountCard = memo(function AccountCard({ account, onPress, onMore 
           </Text>
         </View>
         <Text variant="caption" tone="subtle">
-          Created {formatDate(account.dateCreated)}
+          {t('card.created', { date: formatDate(account.dateCreated) })}
         </Text>
       </View>
     </Card>

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/providers/ThemeProvider';
 import { haptics } from '@/lib/haptics';
 import { Text } from './Text';
@@ -41,7 +42,8 @@ type MultiProps<V extends string | number> = CommonProps<V> & {
 /** A form field that opens a full-screen, searchable picker (single or multi-select). */
 export function SelectField<V extends string | number>(props: SingleProps<V> | MultiProps<V>) {
   const { colors, radius } = useTheme();
-  const { label, options, placeholder = 'Select…', error, required, readOnly, disabled, helper } = props;
+  const { t } = useTranslation();
+  const { label, options, placeholder = t('select.placeholder'), error, required, readOnly, disabled, helper } = props;
   const [open, setOpen] = useState(false);
 
   const display = useMemo(() => {
@@ -65,8 +67,8 @@ export function SelectField<V extends string | number>(props: SingleProps<V> | M
       ) : (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${label}: ${display || 'not set'}`}
-          accessibilityHint="Opens a list to choose from"
+          accessibilityLabel={t('select.value', { label, value: display || t('select.notSet') })}
+          accessibilityHint={t('select.hint')}
           disabled={disabled}
           onPress={() => setOpen(true)}
           style={{
@@ -104,6 +106,7 @@ export function SelectField<V extends string | number>(props: SingleProps<V> | M
 
 function PickerModal<V extends string | number>(props: (SingleProps<V> | MultiProps<V>) & { onClose: () => void }) {
   const { colors, spacing } = useTheme();
+  const { t } = useTranslation();
   const { options, label, onClose } = props;
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState<V[]>(props.multiple ? [...props.value] : []);
@@ -152,13 +155,13 @@ function PickerModal<V extends string | number>(props: (SingleProps<V> | MultiPr
               gap: spacing.md,
             }}
           >
-            <Button title="Cancel" variant="ghost" size="sm" onPress={onClose} />
+            <Button title={t('actions.cancel')} variant="ghost" size="sm" onPress={onClose} />
             <Text variant="h2" numberOfLines={1} style={{ flexShrink: 1 }}>
               {label}
             </Text>
             {props.multiple ? (
               <Button
-                title="Done"
+                title={t('actions.done')}
                 variant="ghost"
                 size="sm"
                 onPress={() => {
@@ -172,17 +175,17 @@ function PickerModal<V extends string | number>(props: (SingleProps<V> | MultiPr
           </View>
           {searchable ? (
             <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
-              <SearchBar value={query} onChangeText={setQuery} placeholder={`Search ${label.toLowerCase()}`} />
+              <SearchBar value={query} onChangeText={setQuery} placeholder={t('select.search', { label: label.toLowerCase() })} />
             </View>
           ) : null}
           {props.multiple && draft.length ? (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.lg }}>
               <Text variant="small" tone="muted">
-                {draft.length} selected
+                {t('select.selected', { count: draft.length })}
               </Text>
               <Pressable onPress={() => setDraft([])} hitSlop={8}>
                 <Text variant="small" tone="primary" weight="bold">
-                  Clear
+                  {t('actions.clear')}
                 </Text>
               </Pressable>
             </View>
@@ -195,7 +198,7 @@ function PickerModal<V extends string | number>(props: (SingleProps<V> | MultiPr
             contentContainerStyle={{ paddingBottom: 40 }}
             ListEmptyComponent={
               <Text tone="muted" center style={{ padding: 24 }}>
-                No matches
+                {t('empty.noMatches')}
               </Text>
             }
             renderItem={({ item }) => {

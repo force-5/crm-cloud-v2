@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { statusTone, toneColors, type Tone } from '@crm/tokens';
 import { useTheme } from '@/providers/ThemeProvider';
 import { Text } from './Text';
@@ -24,9 +25,12 @@ export function Badge({ label, tone = 'neutral' }: { label: string; tone?: Tone 
   );
 }
 
-const STATUS_LABEL: Record<string, string> = { active: 'Active', inactive: 'Inactive', draft: 'Draft' };
+const STATUS_KEYS = ['active', 'inactive', 'draft'] as const;
+type StatusKey = (typeof STATUS_KEYS)[number];
+const isStatusKey = (s: string): s is StatusKey => (STATUS_KEYS as readonly string[]).includes(s);
 
 /** Account / product / license status badge using the shared `statusTone` map. */
 export function StatusBadge({ status }: { status: string }) {
-  return <Badge label={STATUS_LABEL[status] ?? status} tone={statusTone[status] ?? 'neutral'} />;
+  const { t } = useTranslation();
+  return <Badge label={isStatusKey(status) ? t(`status.${status}`) : status} tone={statusTone[status] ?? 'neutral'} />;
 }

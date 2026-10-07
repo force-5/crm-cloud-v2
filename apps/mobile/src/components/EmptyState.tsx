@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/providers/ThemeProvider';
 import { errorMessage } from '@/lib/api';
 import { Text } from './Text';
@@ -47,12 +48,13 @@ export function EmptyState({
 }
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  const { t } = useTranslation();
   return (
     <EmptyState
       icon="cloud-offline-outline"
-      title="Couldn't load this"
+      title={t('errors.loadFailed')}
       message={errorMessage(error)}
-      actionLabel={onRetry ? 'Try again' : undefined}
+      actionLabel={onRetry ? t('actions.retry') : undefined}
       onAction={onRetry}
     />
   );

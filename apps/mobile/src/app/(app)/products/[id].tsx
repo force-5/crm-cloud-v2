@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@crm/api-client';
 import {
@@ -37,6 +38,7 @@ function toValues(p: Product | null): ProductFormValues {
 }
 
 export default function ProductDetailScreen() {
+  const { t } = useTranslation(['products', 'common']);
   const params = useLocalSearchParams<{ id: string }>();
   const isNew = params.id === 'new';
   const id: number | 'new' = isNew ? 'new' : Number(params.id);
@@ -45,7 +47,7 @@ export default function ProductDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: isNew ? 'New product' : (detail.data?.product?.name ?? 'Product') }} />
+      <Stack.Screen options={{ title: isNew ? t('detail.newTitle') : (detail.data?.product?.name ?? t('detail.crumb')) }} />
       {detail.isPending ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
       ) : detail.isError ? (
@@ -58,6 +60,7 @@ export default function ProductDetailScreen() {
 }
 
 function ProductForm({ data }: { data: ProductDetailResponse }) {
+  const { t } = useTranslation(['products', 'common']);
   const router = useRouter();
   const qc = useQueryClient();
   const toast = useToast();
@@ -88,22 +91,22 @@ function ProductForm({ data }: { data: ProductDetailResponse }) {
         qc.setQueryData<ProductDetailResponse>(queryKeys.products.detail(saved.id), { ...data, product: saved });
         void qc.invalidateQueries({ queryKey: queryKeys.products.list({}) });
         haptics.success();
-        toast.success(isNew ? 'Product created' : 'Product saved');
+        toast.success(isNew ? t('toast.created', { name: saved.name }) : t('toast.saved'));
         if (isNew) router.replace(`/products/${saved.id}`);
         else reset(toValues(saved));
       } catch (err) {
         haptics.error();
         if (err instanceof ApiClientError && err.fieldErrors) {
           for (const [k, m] of Object.entries(err.fieldErrors)) setError(k as keyof ProductFormValues, { message: m });
-          toast.error('Please fix the highlighted fields');
-        } else toast.error(errorMessage(err, 'Could not save the product'));
+          toast.error(t('common:errors.fixFields'));
+        } else toast.error(errorMessage(err, t('toast.saveFailed')));
       } finally {
         setSaving(false);
       }
     },
     () => {
       haptics.error();
-      toast.error('Please check the highlighted fields');
+      toast.error(t('common:errors.fixFields'));
     },
   );
 
@@ -115,18 +118,24 @@ function ProductForm({ data }: { data: ProductDetailResponse }) {
       qc.removeQueries({ queryKey: queryKeys.products.detail(product.id) });
       void qc.invalidateQueries({ queryKey: queryKeys.products.list({}) });
       haptics.success();
-      toast.success(`${product.name} deleted`);
+      toast.success(t('toast.deleted', { name: product.name }));
       setConfirmDelete(false);
       router.back();
     } catch (err) {
       haptics.error();
-      toast.error(errorMessage(err, 'Could not delete the product'));
+      toast.error(errorMessage(err, t('toast.deleteFailed')));
     } finally {
       setDeleting(false);
     }
   };
 
   const audit = product?.audit;
+  const auditLine = (kind: 'created' | 'updated', who?: string | null, date?: string | null) => {
+    if (who && date) return t(`audit.${kind}`, { who, date: formatDateTime(date) });
+    if (date) return t(`audit.${kind}NoBy`, { date: formatDateTime(date) });
+    if (who) return t(`audit.${kind}NoDate`, { who });
+    return t('audit.createdBare');
+  };
 
   return (
     <Screen
@@ -135,7 +144,7 @@ function ProductForm({ data }: { data: ProductDetailResponse }) {
         canEdit ? (
           <ActionBar>
             <Button
-              title={isNew ? 'Create product' : 'Save changes'}
+              title={isNew ? t('actions.create') : t('common:actions.saveChanges')}
               flex
               loading={saving}
               disabled={!isNew && !formState.isDirty}
@@ -145,41 +154,39 @@ function ProductForm({ data }: { data: ProductDetailResponse }) {
         ) : undefined
       }
     >
-      <FormSection title="Product">
-        <FormText control={control} name="name" label="Name" required readOnly={ro} maxLength={100} />
-        <FormText control={control} name="description" label="Description" readOnly={ro} multiline maxLength={500} />
-        <FormText control={control} name="productCode" label="Product code" required readOnly={ro} autoCapitalize="characters" maxLength={50} />
-        <FormText control={control} name="productSku" label="SKU" readOnly={ro} autoCapitalize="characters" maxLength={50} />
-        <FormText control={control} name="productVersion" label="Version" readOnly={ro} maxLength={20} />
-        <FormSelect control={control} name="productCategoryId" label="Category" options={categories} readOnly={ro} />
-        <FormSwitch control={control} name="active" label="Active" description="Inactive products can't be assigned" disabled={ro} />
+      <FormSection title={t('detail.section')}>
+        <FormText control={control} name="name" label={t('fields.name')} required readOnly={ro} maxLength={100} />
+        <FormText control={control} name="description" label={t('fields.description')} readOnly={ro} multiline maxLength={500} />
+        <FormText control={control} name="productCode" label={t('fields.code')} required readOnly={ro} autoCapitalize="characters" maxLength={50} />
+        <FormText control={control} name="productSku" label={t('fields.sku')} readOnly={ro} autoCapitalize="characters" maxLength={50} />
+        <FormText control={control} name="productVersion" label={t('fields.version')} readOnly={ro} maxLength={20} />
+        <FormSelect control={control} name="productCategoryId" label={t('fields.category')} options={categories} readOnly={ro} />
+        <FormSwitch control={control} name="active" label={t('fields.active')} description={t('fields.activeHint')} disabled={ro} />
       </FormSection>
 
       {audit && (audit.createdBy || audit.dateCreated || audit.updatedBy || audit.lastUpdated) ? (
         <View style={{ gap: 2, paddingHorizontal: 4 }}>
           <Text variant="caption" tone="subtle">
-            Created{audit.createdBy ? ` by ${audit.createdBy}` : ''}
-            {audit.dateCreated ? ` on ${formatDateTime(audit.dateCreated)}` : ''}
+            {auditLine('created', audit.createdBy, audit.dateCreated)}
           </Text>
           {audit.updatedBy || audit.lastUpdated ? (
             <Text variant="caption" tone="subtle">
-              Updated{audit.updatedBy ? ` by ${audit.updatedBy}` : ''}
-              {audit.lastUpdated ? ` on ${formatDateTime(audit.lastUpdated)}` : ''}
+              {auditLine('updated', audit.updatedBy, audit.lastUpdated)}
             </Text>
           ) : null}
         </View>
       ) : null}
 
       {canDelete ? (
-        <Button title="Delete product" variant="danger" icon="trash-outline" full onPress={() => setConfirmDelete(true)} />
+        <Button title={t('actions.delete')} variant="danger" icon="trash-outline" full onPress={() => setConfirmDelete(true)} />
       ) : null}
 
       <ConfirmSheet
         visible={confirmDelete}
         destructive
-        title={`Delete product ${product?.name ?? ''}?`}
-        message="This cannot be undone."
-        confirmLabel="Delete"
+        title={t('confirm.deleteTitle')}
+        message={t('confirm.deleteBody', { name: product?.name ?? '' })}
+        confirmLabel={t('confirm.deleteConfirm')}
         loading={deleting}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={doDelete}

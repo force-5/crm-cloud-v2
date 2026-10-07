@@ -3,6 +3,7 @@ import type { Config } from './config';
 import type { SecretBox } from './auth/crypto';
 import type { KeycloakClient } from './auth/keycloak';
 import type { KeyedLimiter } from './auth/limiter';
+import type { SharedState } from './auth/shared-state';
 import type { VmsClient } from './vms/client';
 import { notFound } from './errors';
 
@@ -11,6 +12,8 @@ export type Deps = {
   keycloak: KeycloakClient;
   vmsClient: VmsClient;
   secretBox: SecretBox;
+  /** Revocation + atomic counters; see auth/shared-state.ts. */
+  shared: SharedState;
   requireAuth: preHandlerAsyncHookHandler;
   loginLimiter: KeyedLimiter;
   recoveryLimiter: KeyedLimiter;

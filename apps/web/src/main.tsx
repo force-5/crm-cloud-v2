@@ -8,6 +8,9 @@ import 'react-easy-crop/react-easy-crop.css';
 import './styles.css';
 import './lib/i18n';
 import { AppProviders, createAppInstance } from './lib/app';
+import { initSentry } from './lib/sentry';
+
+void initSentry();
 
 async function bootstrap() {
   // Optional in-browser mock backend for UI work without the BFF: VITE_MOCK_API=true pnpm dev

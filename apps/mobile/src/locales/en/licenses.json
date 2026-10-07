@@ -1,0 +1,47 @@
+{
+  "searchPlaceholder": "Search licenses…",
+  "add": "Add license",
+  "seats": {
+    "purchasedLabel": "purchased",
+    "usage": "{{used}} used · {{available}} available",
+    "inUse_one": "{{count}} seat is in use.",
+    "inUse_other": "{{count}} seats are in use."
+  },
+  "empty": {
+    "title": "No licenses",
+    "statusBody": "No product licenses with this status."
+  },
+  "menu": {
+    "editSeats": "Edit seats",
+    "label": "Actions for {{name}}"
+  },
+  "editSeats": {
+    "title": "Seats · {{name}}",
+    "label": "Purchased seats",
+    "belowUsed": "This is below the {{used}} seats already in use. Users won’t be removed, but the license will be over-allocated.",
+    "save": "Save seats",
+    "saved": "Seats updated for {{name}}"
+  },
+  "confirm": {
+    "deactivateTitle": "Deactivate license {{name}}?",
+    "deactivateBody": "Users of this account will lose access to this product until the license is activated again.",
+    "activateTitle": "Activate license {{name}}?",
+    "activateBody": "Users of this account will regain access to this product."
+  },
+  "toast": {
+    "added": "{{name}} license added",
+    "addFailed": "Couldn’t add the license.",
+    "activated": "{{name}} license activated",
+    "deactivated": "{{name}} license deactivated",
+    "updateFailed": "Couldn’t update the license."
+  },
+  "addDialog": {
+    "title": "Add license",
+    "product": "Product",
+    "productOption": "{{name}} ({{type}})",
+    "chooseProduct": "Choose a product…",
+    "noneAvailable": "Every active product is already assigned to this account.",
+    "seats": "Purchased seats",
+    "submit": "Add license"
+  }
+}

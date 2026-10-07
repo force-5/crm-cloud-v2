@@ -20,7 +20,7 @@ function captureCreate(): Captured {
 
 async function fillRequired(user: ReturnType<typeof renderApp>['user']) {
   await user.selectOptions(screen.getByLabelText(/^Language/), 'English');
-  await user.click(screen.getByRole('button', { name: /^Time zone/ }));
+  await user.click(screen.getByRole('combobox', { name: /^Time zone/ }));
   await user.type(await screen.findByRole('combobox', { name: 'Search time zones' }), 'chicago');
   await user.keyboard('{Enter}');
   await user.type(screen.getByLabelText(/^First name/), 'Megan');
@@ -40,7 +40,11 @@ describe('account form — draft vs publish', () => {
     const { user, location } = renderApp('/accounts/new');
     expect(await screen.findByRole('heading', { name: 'New Account', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Drafts are flexible.')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Licenses' })).toBeDisabled();
+    // Unavailable until the first save: announced via aria-disabled, and clicking it does nothing.
+    const licensesTab = screen.getByRole('tab', { name: 'Licenses' });
+    expect(licensesTab).toHaveAttribute('aria-disabled', 'true');
+    await user.click(licensesTab);
+    expect(licensesTab).toHaveAttribute('aria-selected', 'false');
 
     await user.type(screen.getByLabelText(/^Company name/), 'Blue Ridge Water');
     await user.click(screen.getByRole('button', { name: 'Save as draft' }));
@@ -127,7 +131,7 @@ describe('account form — draft vs publish', () => {
     await user.click(screen.getByRole('button', { name: 'Publish' }));
     expect(await screen.findByText('Mobile is required')).toBeInTheDocument();
     await user.type(screen.getByLabelText(/^Mobile/), '+1 404 555 0123');
-    await user.click(screen.getByRole('button', { name: /^Time zone/ }));
+    await user.click(screen.getByRole('combobox', { name: /^Time zone/ }));
     await user.type(await screen.findByRole('combobox', { name: 'Search time zones' }), 'chicago');
     await user.keyboard('{Enter}');
     await user.click(screen.getByRole('button', { name: 'Publish' }));

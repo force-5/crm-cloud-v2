@@ -5,6 +5,7 @@ import { forbidden, unauthenticated } from '../errors';
 import type { VmsClient } from '../vms/client';
 import type { KeycloakClient } from './keycloak';
 import { ensureFreshToken } from './refresh';
+import { getSignedInUser } from '../vms/users';
 
 /**
  * Decision D1: only Force 5 staff holding a CRM role (CRM_ALLOWED_ROLES, default CRM_ADMIN or ROLE_ADMIN)
@@ -38,6 +39,25 @@ export function withCrmGrants(user: CurrentUser, crm: Config['crm']): CurrentUse
   return granted.length ? { ...user, permissions: [...user.permissions, ...granted] } : user;
 }
 
+async function recheckRoles(req: FastifyRequest, config: Config) {
+  let fresh: CurrentUser | undefined;
+  try {
+    fresh = (await getSignedInUser(req.vms))?.user;
+  } catch (err) {
+    // VMS unreachable: keep the session (the next refresh re-checks); every VMS call fails anyway.
+    req.log.warn({ code: (err as { code?: string }).code }, 'role re-check skipped: VMS unavailable');
+    return;
+  }
+  const auth = req.session.auth!;
+  const user = withCrmGrants({ ...auth.user, securityRoles: fresh?.securityRoles ?? [], permissions: fresh?.permissions ?? [] }, config.crm);
+  if (!isCrmUser(user, config.crm)) {
+    req.log.warn({ email: auth.user.email }, 'CRM access revoked since sign-in; ending session');
+    await req.session.destroy();
+    throw forbidden('You no longer have access to the Force 5 CRM.');
+  }
+  req.session.auth = { ...auth, user: { ...auth.user, securityRoles: user.securityRoles, permissions: user.permissions } };
+}
+
 /**
  * preHandler for every protected `/api` route: authenticated session, idle timeout, D1 guard,
  * lazy token refresh, then binds a VMS client carrying the session's token to `req.vms`.
@@ -52,6 +72,12 @@ export function requireAuth(deps: {
     const auth = req.session.auth;
     if (!auth) throw unauthenticated();
 
+    // Absolute lifetime (review L7): activity keeps a session alive, but not forever.
+    if (Date.now() - auth.loginAt > deps.config.sessionMaxMs) {
+      await req.session.destroy();
+      throw unauthenticated('Your session has ended. Please sign in again.');
+    }
+
     const lastSeen = req.session.lastSeen ?? auth.loginAt;
     if (Date.now() - lastSeen > idleMs) {
       await req.session.destroy();
@@ -62,12 +88,16 @@ export function requireAuth(deps: {
       throw forbidden('You do not have access to the Force 5 CRM.');
     }
 
-    await ensureFreshToken(req, deps.keycloak);
+    const refreshed = await ensureFreshToken(req, deps.keycloak);
     req.session.lastSeen = Date.now();
     req.vms = deps.vmsClient.bind({
       token: req.session.auth!.accessToken,
       requestId: req.id,
       userAgent: req.headers['user-agent'],
     });
+
+    // Roles are captured at login; re-check them in VMS on every token refresh (~every 25 min) so removing
+    // someone's CRM role ends their access without waiting for the next sign-in (review L7).
+    if (refreshed) await recheckRoles(req, deps.config);
   };
 }

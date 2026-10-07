@@ -1,6 +1,7 @@
 import { forwardRef, useState, type ReactNode } from 'react';
 import { Pressable, TextInput, View, type TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/providers/ThemeProvider';
 import { Text } from './Text';
 
@@ -24,6 +25,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
   const { colors, radius, fonts } = useTheme();
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(true);
+  const { t } = useTranslation('auth');
 
   return (
     <View style={{ gap: 6 }}>
@@ -84,7 +86,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
               onPress={() => setHidden((h) => !h)}
               hitSlop={10}
               accessibilityRole="button"
-              accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
+              accessibilityLabel={hidden ? t('login.showPassword') : t('login.hidePassword')}
             >
               <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textMuted} />
             </Pressable>
@@ -108,13 +110,15 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
 export function SearchBar({
   value,
   onChangeText,
-  placeholder = 'Search',
+  placeholder,
 }: {
   value: string;
   onChangeText: (v: string) => void;
   placeholder?: string;
 }) {
   const { colors, radius, fonts } = useTheme();
+  const { t } = useTranslation();
+  const label = placeholder ?? t('filters.search');
   return (
     <View
       style={{
@@ -132,17 +136,17 @@ export function SearchBar({
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder={placeholder}
+        placeholder={label}
         placeholderTextColor={colors.textSubtle}
         returnKeyType="search"
         autoCorrect={false}
         autoCapitalize="none"
         clearButtonMode="while-editing"
-        accessibilityLabel={placeholder}
+        accessibilityLabel={label}
         style={{ flex: 1, height: 44, color: colors.text, fontFamily: fonts.regular, fontSize: 16 }}
       />
       {value ? (
-        <Pressable onPress={() => onChangeText('')} hitSlop={10} accessibilityLabel="Clear search">
+        <Pressable onPress={() => onChangeText('')} hitSlop={10} accessibilityLabel={t('filters.clearSearch')}>
           <Ionicons name="close-circle" size={18} color={colors.textSubtle} />
         </Pressable>
       ) : null}

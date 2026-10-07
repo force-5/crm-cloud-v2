@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, View, type DimensionValue, type StyleProp, type ViewStyle } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/providers/ThemeProvider';
 
 export function Skeleton({
@@ -37,9 +38,10 @@ export function Skeleton({
 /** Placeholder shaped like a list card. */
 export function SkeletonCard() {
   const { colors, radius, spacing } = useTheme();
+  const { t } = useTranslation();
   return (
     <View
-      accessibilityLabel="Loading"
+      accessibilityLabel={t('table.loading')}
       style={{
         backgroundColor: colors.surface,
         borderColor: colors.border,

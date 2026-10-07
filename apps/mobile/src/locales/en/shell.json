@@ -1,0 +1,19 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "accounts": "Accounts",
+    "products": "Products",
+    "profile": "My Profile"
+  },
+  "signOut": {
+    "title": "Sign out?",
+    "confirm": "Sign out"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "saveFailed": "Theme applied, but it couldn’t be saved to your profile."
+  },
+  "version": "Force 5 CRM {{version}}"
+}

@@ -120,11 +120,20 @@ See `apps/bff/.env.example` for the full list.
   - Filled primary buttons use a darker orange (`#c2500e`) so white text meets WCAG AA.
   - Brand orange `#f36b21` is still used for the logo mark, the active nav bar, toggles, tabs and focus rings.
   - To change this, edit `--primary-solid` in `apps/web/src/styles.css`.
+- **Quality and security (2026-10-07):**
+  - Every screen passes axe WCAG 2.1 AA in light and dark themes, on desktop and phone (`e2e/tests/a11y.spec.ts`).
+  - BFF security review: all Medium findings fixed (logout race, MFA brute force, unbounded anonymous sessions, HTTP-only origin) plus most Low ones, each with a regression test (`apps/bff/test/session-security.test.ts`, `hardening.test.ts`).
+  - Sentry is wired (BFF + web, scrubbed, same-origin tunnel). It's off until DSNs are configured.
+  - The mobile app's text is fully in locale files, as on the web.
+  - Authenticator-app (TOTP) MFA is switched off on web, mobile and BFF until VMS change V4, because VMS doesn't verify TOTP codes yet.
 - **Not yet done:**
-  - Sentry SDK wiring (only the hooks are in place).
-  - Redis session store tested against a real Redis.
-  - Docker image build (it was not run here).
-  - axe accessibility pass.
+  - Redis session store tested against a real Redis (needs Docker). The security fixes' shared state also uses Redis when configured.
+  - Docker image build (needs Docker Desktop running).
+  - Mobile app run on a real phone.
+  - Security review leftovers, deliberately deferred:
+    - Re-authentication before MFA or mobile-number changes (L6).
+    - Redis-backed per-IP rate limits for multi-instance deploys (L8).
+    - A narrower image CSP than `*.amazonaws.com`.
   - Apply the AWS infrastructure. The templates and runbook are ready (`infra/`, `docs/DEPLOYMENT.md`); someone with AWS access has to validate and deploy them.
   - First CI run on GitHub. The workflows are validated locally, not yet run.
   - Final mobile app icons (the current ones are placeholders).

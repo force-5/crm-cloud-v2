@@ -194,8 +194,9 @@ export function ImageCropUpload({
         id={inputId}
         type="file"
         accept={accept}
-        className="sr-only"
-        tabIndex={-1}
+        // Operated only through the visible button (pick() → .click()), so it is fully hidden from the
+        // accessibility tree. `sr-only` left an unlabelled form control for screen readers (axe `label`).
+        hidden
         disabled={disabled}
         onChange={(e) => openFile(e.target.files?.[0])}
       />

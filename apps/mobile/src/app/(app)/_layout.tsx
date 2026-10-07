@@ -1,10 +1,12 @@
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/providers/ThemeProvider';
 
 export const unstable_settings = { initialRouteName: '(tabs)' };
 
 export default function AppLayout() {
   const { colors, fonts } = useTheme();
+  const { t } = useTranslation(['common', 'accounts', 'products']);
   return (
     <Stack
       screenOptions={{
@@ -17,8 +19,8 @@ export default function AppLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="accounts/[id]" options={{ title: 'Account' }} />
-      <Stack.Screen name="products/[id]" options={{ title: 'Product' }} />
+      <Stack.Screen name="accounts/[id]" options={{ title: t('accounts:detail.crumb') }} />
+      <Stack.Screen name="products/[id]" options={{ title: t('products:detail.crumb') }} />
     </Stack>
   );
 }

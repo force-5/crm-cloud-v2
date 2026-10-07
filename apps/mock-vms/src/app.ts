@@ -12,6 +12,8 @@ export type MockOptions = {
   refreshTtlSeconds?: number;
   /** Serve the mock-only `POST tenant/setup/publish/{id}` (V3). Default true. */
   supportPublishDraft?: boolean;
+  /** Reproduce real-VMS feature bugs (V2, V3, V14, V15). Implies supportPublishDraft=false. Default false. */
+  realBugs?: boolean;
   /** Check Keycloak logins against this real VMS instead of the seed users (see KeycloakOptions.vmsUrl). */
   keycloakVmsUrl?: string;
   logger?: boolean;
@@ -53,7 +55,8 @@ export async function buildMockVms(opts: MockOptions = {}): Promise<MockVms> {
     get publicUrl() {
       return urls.publicUrl;
     },
-    supportPublishDraft: opts.supportPublishDraft ?? true,
+    supportPublishDraft: opts.realBugs ? false : (opts.supportPublishDraft ?? true),
+    realBugs: opts.realBugs ?? false,
     log,
   });
 

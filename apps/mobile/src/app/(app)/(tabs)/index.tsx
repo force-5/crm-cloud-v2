@@ -2,6 +2,7 @@ import { Pressable, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { queryKeys } from '@crm/api-client';
 import { PERMISSIONS, hasPermission, type AccountSummary, type StatusFilter } from '@crm/contracts';
 import {
@@ -24,6 +25,7 @@ import { formatDate, fullName, initials } from '@/lib/format';
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const { t } = useTranslation(['dashboard', 'shell']);
   const user = useCurrentUser();
   const { session } = useSession();
   const { colors, spacing } = useTheme();
@@ -39,11 +41,11 @@ export default function DashboardScreen() {
   const kpiCols = width >= 700 ? 4 : 2;
 
   const kpis: Array<{ label: string; value: number | null | undefined; icon: IconName; status?: StatusFilter; color: string }> = [
-    { label: 'Total accounts', value: d?.total, icon: 'business-outline', status: 'all', color: colors.primary },
-    { label: 'Active', value: d?.active, icon: 'checkmark-circle-outline', status: 'active', color: colors.success },
-    { label: 'Inactive', value: d?.inactive, icon: 'pause-circle-outline', status: 'inactive', color: colors.neutralText },
+    { label: t('kpi.total'), value: d?.total, icon: 'business-outline', status: 'all', color: colors.primary },
+    { label: t('kpi.active'), value: d?.active, icon: 'checkmark-circle-outline', status: 'active', color: colors.success },
+    { label: t('kpi.inactive'), value: d?.inactive, icon: 'pause-circle-outline', status: 'inactive', color: colors.neutralText },
   ];
-  if (d && d.draft !== null) kpis.push({ label: 'Draft', value: d.draft, icon: 'create-outline', color: colors.warning });
+  if (d && d.draft !== null) kpis.push({ label: t('kpi.draft'), value: d.draft, icon: 'create-outline', color: colors.warning });
 
   return (
     <Screen edges={['top']} refreshing={dashboard.isRefetching} onRefresh={canAccounts ? () => dashboard.refetch() : undefined}>
@@ -54,11 +56,11 @@ export default function DashboardScreen() {
             {user.tenant.name.toUpperCase()}
           </Text>
           <Text variant="title" numberOfLines={1}>
-            Hi, {user.firstName}
+            {t('greeting', { name: user.firstName })}
           </Text>
         </View>
         {showEnv ? <Badge label={env!.toUpperCase()} tone="primary" /> : null}
-        <Pressable accessibilityRole="button" accessibilityLabel="My profile" onPress={() => router.navigate('/profile')}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('shell:nav.profile')} onPress={() => router.navigate('/profile')}>
           <Avatar uri={user.profileImageUrl} initials={initials(user.firstName, user.lastName)} size={38} />
         </Pressable>
       </View>
@@ -67,8 +69,8 @@ export default function DashboardScreen() {
         <Card>
           <EmptyState
             icon="lock-closed-outline"
-            title="No account access"
-            message="Your role doesn't include customer accounts. Ask an administrator if you need access."
+            title={t('noAccess.title')}
+            message={t('noAccess.body')}
           />
         </Card>
       ) : dashboard.isError && !d ? (
@@ -82,7 +84,7 @@ export default function DashboardScreen() {
               <Card
                 key={k.label}
                 onPress={k.status ? () => openList(k.status!) : undefined}
-                accessibilityLabel={`${k.label}: ${k.value ?? 'loading'}`}
+                accessibilityLabel={t('kpi.value', { label: k.label, value: k.value ?? t('kpi.loading') })}
                 style={{ flexBasis: `${100 / kpiCols - 4}%`, flexGrow: 1, gap: 6 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -101,12 +103,12 @@ export default function DashboardScreen() {
           </View>
 
           <Card
-            title="Recently created"
-            subtitle="The newest customer accounts"
+            title={t('recent.title')}
+            subtitle={t('recent.subtitle')}
             right={
               <Pressable accessibilityRole="link" onPress={() => openList('all')} hitSlop={8}>
                 <Text variant="small" tone="primary" weight="bold">
-                  View all
+                  {t('recent.viewAll')}
                 </Text>
               </Pressable>
             }
@@ -122,7 +124,7 @@ export default function DashboardScreen() {
                 ))}
               </View>
             ) : d.recent.length === 0 ? (
-              <EmptyState icon="business-outline" title="No accounts yet" message="New accounts will show up here." />
+              <EmptyState icon="business-outline" title={t('recent.emptyTitle')} message={t('recent.empty')} />
             ) : (
               d.recent.map((a, i) => (
                 <RecentRow key={a.id} account={a} first={i === 0} onPress={() => router.push(`/accounts/${a.id}`)} />
@@ -137,12 +139,13 @@ export default function DashboardScreen() {
 
 function RecentRow({ account, first, onPress }: { account: AccountSummary; first: boolean; onPress: () => void }) {
   const { colors } = useTheme();
+  const { t } = useTranslation(['common', 'shell']);
   const contact = fullName(account.mainContact.firstName, account.mainContact.lastName);
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${account.name}, ${account.status}`}
+      accessibilityLabel={t('a11y.item', { name: account.name, status: t(`status.${account.status}`) })}
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',

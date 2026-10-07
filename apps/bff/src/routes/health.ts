@@ -13,10 +13,18 @@ export async function healthRoutes(app: FastifyInstance, deps: Deps) {
     }
   };
 
-  app.get(API.health, async (_req, reply) => {
+  // Unauthenticated, so callers can't fan it out into upstream traffic: one upstream check per 5s at most,
+  // shared by concurrent callers (review L5).
+  let cached: { at: number; result: Promise<{ status: string; vms: string; keycloak: string }> } | undefined;
+  const check = async () => {
     const [vms, keycloak] = await Promise.all([ping(`${deps.config.vmsUrl}ping`), ping(deps.config.keycloak.realmUrl)]);
+    return { status: vms === 'up' && keycloak === 'up' ? 'ok' : 'degraded', vms, keycloak };
+  };
+
+  app.get(API.health, { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async (_req, reply) => {
+    if (!cached || Date.now() - cached.at > 5_000) cached = { at: Date.now(), result: check() };
     reply.header('Cache-Control', 'no-store');
     // The BFF itself is healthy either way (200), so the LB doesn't cycle it over a VMS outage.
-    return { status: vms === 'up' && keycloak === 'up' ? 'ok' : 'degraded', vms, keycloak };
+    return cached.result;
   });
 }

@@ -1,0 +1,54 @@
+{
+  "newProduct": "New Product",
+  "list": {
+    "title": "Products",
+    "subtitle": "Product catalog",
+    "count_one": "{{count, number}} product",
+    "count_other": "{{count, number}} products",
+    "searchPlaceholder": "Search products…",
+    "na": "N/A",
+    "emptyTitle": "No products here",
+    "emptyFilteredTitle": "No matching products",
+    "emptyFiltered": "No products match “{{search}}”."
+  },
+  "detail": {
+    "crumb": "Product",
+    "newTitle": "New Product",
+    "section": "Product"
+  },
+  "fields": {
+    "name": "Name",
+    "description": "Description",
+    "code": "Product code",
+    "sku": "SKU",
+    "version": "Version",
+    "category": "Category",
+    "active": "Active",
+    "activeHint": "Inactive products can’t be assigned to accounts"
+  },
+  "audit": {
+    "created": "Created by {{who}} on {{date}}",
+    "createdNoBy": "Created on {{date}}",
+    "createdNoDate": "Created by {{who}}",
+    "createdBare": "Created",
+    "updated": "Updated by {{who}} on {{date}}",
+    "updatedNoBy": "Updated on {{date}}",
+    "updatedNoDate": "Updated by {{who}}"
+  },
+  "actions": {
+    "create": "Create product",
+    "delete": "Delete product"
+  },
+  "confirm": {
+    "deleteTitle": "Delete product?",
+    "deleteBody": "Delete product {{name}}? This cannot be undone.",
+    "deleteConfirm": "Delete product"
+  },
+  "toast": {
+    "created": "{{name}} created",
+    "saved": "Changes saved",
+    "saveFailed": "Couldn’t save the product.",
+    "deleted": "{{name}} deleted",
+    "deleteFailed": "Couldn’t delete the product."
+  }
+}

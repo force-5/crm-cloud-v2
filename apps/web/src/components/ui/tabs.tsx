@@ -33,7 +33,7 @@ export function TabsTrigger({ className, ...props }: React.ComponentProps<typeof
 
 // ---- Segmented control (prototype .seg) -------------------------------------------------------
 
-export type SegmentOption<V extends string> = { value: V; label: React.ReactNode };
+export type SegmentOption<V extends string> = { value: V; label: React.ReactNode; disabled?: boolean };
 
 export function Segmented<V extends string>({
   value,
@@ -63,7 +63,8 @@ export function Segmented<V extends string>({
         <ToggleGroup.Item
           key={o.value}
           value={o.value}
-          className="inline-flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-[6px] px-3 text-[13px] font-bold text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus-ring data-[state=on]:bg-surface data-[state=on]:text-text data-[state=on]:shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:data-[state=on]:bg-surface-muted md:min-h-8"
+          disabled={o.disabled}
+          className="inline-flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-[6px] px-3 text-[13px] font-bold text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus-ring data-[state=on]:bg-surface data-[state=on]:text-text data-[state=on]:shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:data-[state=on]:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-text-muted md:min-h-8"
         >
           {o.label}
         </ToggleGroup.Item>

@@ -11,6 +11,7 @@ import {
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Config } from '../config';
 import type { Deps } from '../deps';
+import { assertImageDataUrl } from '../images';
 import { withCrmGrants } from '../auth/guard';
 import { AppError, parseOrThrow, unauthenticated, validationError } from '../errors';
 import * as users from '../vms/users';
@@ -44,6 +45,10 @@ async function freshProfile(req: FastifyRequest, crm: Config['crm']): Promise<Pr
   return { ...r, user: rememberUser(req, crm, r.user) };
 }
 
+/** Flip when VMS change V4 (real TOTP verification) ships. */
+const TOTP_ENABLED = false;
+const TOTP_UNAVAILABLE = 'Authenticator apps aren’t available yet; use text-message codes. (Needs VMS change V4.)';
+
 export function totpSecretFromUri(uri: string): string {
   try {
     const secret = new URL(uri).searchParams.get('secret');
@@ -71,6 +76,11 @@ export async function profileRoutes(app: FastifyInstance, deps: Deps) {
 
   app.patch(API.profile.preferences, { config: { audit: 'profile.preferences' } }, async (req) => {
     const prefs = parseOrThrow(preferencesSchema, req.body);
+    // VMS never actually checks authenticator-app codes yet (V4), so switching to TOTP would make MFA
+    // pass with any code. Refuse until V4 ships (review L6).
+    if (prefs.mfaType === 'totp') {
+      throw validationError({ mfaType: TOTP_UNAVAILABLE });
+    }
     const me = sessionUser(req);
     if (prefs.mfaEnabled === false && me.tenant.requireMfa) {
       throw validationError({ mfaEnabled: 'Two-factor authentication is required by your organization.' });
@@ -89,6 +99,7 @@ export async function profileRoutes(app: FastifyInstance, deps: Deps) {
 
   app.put(API.profile.photo, { bodyLimit: PHOTO_BODY_LIMIT, config: { audit: 'profile.photo.upload' } }, async (req) => {
     const { dataUrl } = parseOrThrow(photoUploadSchema, req.body);
+    assertImageDataUrl(dataUrl);
     if (dataUrl.length > MAX_PHOTO_CHARS) throw validationError({ dataUrl: 'Image must be 5 MB or smaller' });
     const me = sessionUser(req);
     const profileImageUrl = await users.updateProfileImage(req.vms, me.id, dataUrl);
@@ -104,6 +115,7 @@ export async function profileRoutes(app: FastifyInstance, deps: Deps) {
   });
 
   app.post(API.profile.totp, { config: { audit: 'profile.mfa.totp' } }, async (req): Promise<TotpEnrollment> => {
+    if (!TOTP_ENABLED) throw new AppError(501, ERROR_CODES.NOT_SUPPORTED, TOTP_UNAVAILABLE);
     const uri = await users.registerTotp(req.vms, sessionUser(req).email);
     if (!uri) throw new AppError(502, ERROR_CODES.INTERNAL, 'Authenticator setup could not be started. Try again later.');
     return { uri, secret: totpSecretFromUri(uri) };

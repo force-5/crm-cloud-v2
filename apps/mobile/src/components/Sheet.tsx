@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/providers/ThemeProvider';
 import { haptics } from '@/lib/haptics';
 import { Text } from './Text';
@@ -23,6 +24,7 @@ export function BottomSheet({
   dismissable?: boolean;
 }) {
   const { colors, radius, spacing } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   return (
     <Modal
@@ -35,7 +37,7 @@ export function BottomSheet({
     >
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <Pressable
-          accessibilityLabel="Close"
+          accessibilityLabel={t('actions.close')}
           style={{ flex: 1, backgroundColor: colors.overlay }}
           onPress={() => dismissable && onClose()}
         />
@@ -71,8 +73,8 @@ export function ConfirmSheet({
   title,
   message,
   children,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   destructive,
   loading,
   onConfirm,
@@ -89,15 +91,16 @@ export function ConfirmSheet({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const variant: ButtonVariant = destructive ? 'danger' : 'primary';
   return (
     <BottomSheet visible={visible} onClose={onCancel} title={title} dismissable={!loading}>
       {typeof message === 'string' ? <Text tone="muted">{message}</Text> : message}
       {children}
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-        <Button title={cancelLabel} variant="secondary" onPress={onCancel} disabled={loading} flex />
+        <Button title={cancelLabel ?? t('actions.cancel')} variant="secondary" onPress={onCancel} disabled={loading} flex />
         <Button
-          title={confirmLabel}
+          title={confirmLabel ?? t('actions.confirm')}
           variant={variant}
           loading={loading}
           onPress={() => {
@@ -131,6 +134,7 @@ export function ActionSheet({
   onClose: () => void;
 }) {
   const { colors, radius } = useTheme();
+  const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onClose} title={title}>
       <View style={{ borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
@@ -164,7 +168,7 @@ export function ActionSheet({
           </Pressable>
         ))}
       </View>
-      <Button title="Cancel" variant="secondary" onPress={onClose} full />
+      <Button title={t('actions.cancel')} variant="secondary" onPress={onClose} full />
     </BottomSheet>
   );
 }

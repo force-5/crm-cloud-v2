@@ -25,6 +25,7 @@ export const SECRET_KEYS = [
   'KEYCLOAK_URL',
   'REDIS_URL',
   'SENTRY_DSN',
+  'SENTRY_WEB_DSN',
   'CRM_ALLOWED_ROLES',
   'CRM_ALLOWED_TENANT_IDS',
 ] as const;

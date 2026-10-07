@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/providers/ThemeProvider';
 import { haptics } from '@/lib/haptics';
 import { Text } from './Text';
@@ -53,6 +54,7 @@ export function Stepper({
   label: string;
 }) {
   const { colors, radius, fonts } = useTheme();
+  const { t } = useTranslation();
   const btn = (icon: IconName, delta: number, a11y: string) => {
     const disabled = delta < 0 ? value <= min : value >= max;
     return (
@@ -84,7 +86,7 @@ export function Stepper({
         {label}
       </Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        {btn('remove', -1, `Decrease ${label}`)}
+        {btn('remove', -1, t('actions.decrease', { label }))}
         <TextInput
           value={String(value)}
           onChangeText={(t) => {
@@ -107,7 +109,7 @@ export function Stepper({
             fontSize: 20,
           }}
         />
-        {btn('add', 1, `Increase ${label}`)}
+        {btn('add', 1, t('actions.increase', { label }))}
       </View>
     </View>
   );

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { IMAGE_DATA_URL } from './accounts';
 import { optionSchema, stringOptionSchema, emptyToUndefined, idField, phone } from './common';
 
 export const themeNameSchema = z.enum(['light', 'dark', 'system']);
@@ -73,7 +74,7 @@ export type SessionInfo = {
 
 export const loginRequestSchema = z.object({
   email: z.string().trim().min(1, 'Email is required').max(50).email('Enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
+  password: z.string().min(1, 'Password is required').max(256),
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
@@ -146,7 +147,7 @@ export const profileFormSchema = z.object({
   stateId: idField(),
   postalCode: emptyToUndefined(z.string().trim().max(20)),
   languageId: idField(),
-  timeZoneName: emptyToUndefined(z.string()),
+  timeZoneName: emptyToUndefined(z.string().max(64)),
 });
 export type ProfileFormValues = z.input<typeof profileFormSchema>;
 export type ProfileFormData = z.output<typeof profileFormSchema>;
@@ -163,5 +164,5 @@ export type PreferencesRequest = z.infer<typeof preferencesSchema>;
 export type TotpEnrollment = { uri: string; secret: string };
 
 export const photoUploadSchema = z.object({
-  dataUrl: z.string().regex(/^data:image\/(png|jpeg|webp);base64,/, 'Image must be PNG, JPEG or WebP'),
+  dataUrl: z.string().regex(IMAGE_DATA_URL, 'Image must be PNG, JPEG or WebP'),
 });

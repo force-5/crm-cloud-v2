@@ -164,8 +164,11 @@ export function Combobox({
             type="button"
             id={id}
             disabled={disabled}
+            // ARIA 1.2 select-only combobox: role=combobox is what allows aria-required/aria-invalid here.
+            role="combobox"
             aria-haspopup="listbox"
             aria-expanded={open}
+            aria-controls={open ? listId : undefined}
             onClick={() => setOpen((o) => !o)}
             className={triggerClass}
             {...aria}
@@ -264,8 +267,11 @@ export function MultiSelectChips({
             type="button"
             id={id}
             disabled={disabled}
+            // ARIA 1.2 select-only combobox: role=combobox is what allows aria-required/aria-invalid here.
+            role="combobox"
             aria-haspopup="listbox"
             aria-expanded={open}
+            aria-controls={open ? listId : undefined}
             onClick={() => setOpen((o) => !o)}
             className="inline-flex min-h-8 flex-1 items-center justify-between gap-2 rounded px-1.5 text-left text-text-muted hover:text-text focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus-ring"
             {...aria}

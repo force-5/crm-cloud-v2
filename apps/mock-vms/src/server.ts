@@ -16,12 +16,17 @@ const { app } = await buildMockVms({
   accessTtlSeconds: process.env.MOCK_ACCESS_TTL_SECONDS ? Number(process.env.MOCK_ACCESS_TTL_SECONDS) : undefined,
   logger: process.env.MOCK_LOG_REQUESTS === 'true',
   keycloakVmsUrl: process.env.MOCK_KEYCLOAK_VMS_URL || undefined,
+  realBugs: process.env.MOCK_VMS_REAL_BUGS === 'true',
 });
 
 await app.listen({ port, host });
 console.log(`[mock-vms] Keycloak: ${publicUrl}/realms/gatekeeper`);
 console.log(`[mock-vms] VMS:      ${publicUrl}/vms/internal/v1/`);
 console.log(`[mock-vms] latency ${latencyMs[0]}-${latencyMs[1]} ms`);
+if (process.env.MOCK_VMS_REAL_BUGS === 'true') {
+  console.log('[mock-vms] reproducing real-VMS bugs V2, V3, V14, V15 (MOCK_VMS_REAL_BUGS=true)');
+}
+if (process.env.MOCK_VMS_REAL_BUGS === 'true') console.log('[mock-vms] reproducing real-VMS bugs V2, V3, V14, V15 (MOCK_VMS_REAL_BUGS=true)');
 if (process.env.MOCK_KEYCLOAK_VMS_URL) {
   console.log(`[mock-vms] Keycloak logins are checked against VMS at ${process.env.MOCK_KEYCLOAK_VMS_URL}`);
 } else console.log(

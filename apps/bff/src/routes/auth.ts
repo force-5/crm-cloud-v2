@@ -13,6 +13,7 @@ import {
   type SessionInfo,
 } from '@crm/contracts';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { randomToken } from '../auth/crypto';
 import { ensureCsrfToken, rotateCsrfToken } from '../auth/csrf';
 import { isCrmUser, withCrmGrants } from '../auth/guard';
 import type { TokenSet } from '../auth/keycloak';
@@ -39,7 +40,7 @@ export function maskDestination(to: string | undefined, channel: MfaType): strin
 }
 
 export async function authRoutes(app: FastifyInstance, deps: Deps) {
-  const { config, keycloak, vmsClient, secretBox, requireAuth, loginLimiter, recoveryLimiter } = deps;
+  const { config, keycloak, vmsClient, secretBox, shared, requireAuth, loginLimiter, recoveryLimiter } = deps;
   const loginRateLimit = { rateLimit: { max: config.rateLimit.loginPerMinute, timeWindow: '1 minute' } };
 
   const vmsFor = (req: FastifyRequest, token?: string) =>
@@ -66,7 +67,7 @@ export async function authRoutes(app: FastifyInstance, deps: Deps) {
     req.session.auth = { ...tokens, tenantId, user: withCrmGrants(user, config.crm), loginAt: now };
     req.session.lastSeen = now;
     rotateCsrfToken(req.session);
-    loginLimiter.reset(user.email);
+    await loginLimiter.reset(user.email);
     return { status: 'ok', session: sessionInfo(req) };
   }
 
@@ -107,7 +108,7 @@ export async function authRoutes(app: FastifyInstance, deps: Deps) {
         channel,
         to,
         userToken: vmsUser.token ?? '',
-        attempts: 0,
+        nonce: randomToken(16),
         expiresAt: Date.now() + MFA_TTL_MS,
       };
       return { status: 'mfa', channel, destination: maskDestination(to, channel) };
@@ -117,7 +118,10 @@ export async function authRoutes(app: FastifyInstance, deps: Deps) {
 
   // ---- CSRF / session --------------------------------------------------------
 
-  app.get(API.auth.csrf, async (req) => ({ csrfToken: ensureCsrfToken(req.session) }));
+  // Creates an (anonymous, 5-minute) session, so it is rate limited per IP (review M3).
+  app.get(API.auth.csrf, { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req) => ({
+    csrfToken: ensureCsrfToken(req.session),
+  }));
 
   app.get(API.auth.session, { preHandler: requireAuth }, async (req) => sessionInfo(req));
 
@@ -130,7 +134,7 @@ export async function authRoutes(app: FastifyInstance, deps: Deps) {
   app.post(API.auth.login, { config: { audit: 'auth.login', ...loginRateLimit } }, async (req): Promise<LoginResult> => {
     const { email, password } = parseOrThrow(loginRequestSchema, req.body);
     req.auditUser = email;
-    loginLimiter.hit(email);
+    await loginLimiter.hit(email);
 
     // Start from a clean slate: a new login replaces any previous state in this session.
     req.session.auth = undefined;
@@ -151,6 +155,7 @@ export async function authRoutes(app: FastifyInstance, deps: Deps) {
         email,
         password: secretBox.encrypt(password),
         passwordExpiresAt: Date.now() + PENDING_PASSWORD_TTL_MS,
+        nonce: randomToken(16),
         accounts: tenants,
       };
       return { status: 'select-account', accounts: tenants };
@@ -174,17 +179,18 @@ export async function authRoutes(app: FastifyInstance, deps: Deps) {
       req.auditUser = pending.email;
       req.auditTenant = tenantId;
 
+      // An invalid pick doesn't use up the one-shot password: the user can choose again.
+      if (!pending.accounts.some((a) => a.id === tenantId)) {
+        throw validationError({ tenantId: 'Choose one of your accounts.' });
+      }
+      // One shot, enforced atomically: parallel requests share the counter, not a session copy (review M2).
+      const uses = await shared.incr(`select:${pending.nonce}`, PENDING_PASSWORD_TTL_MS);
       const box = pending.password;
-      // One shot: the encrypted password is removed whatever happens next.
       req.session.pending = { ...pending, password: undefined };
-      const password = box && pending.passwordExpiresAt > Date.now() ? secretBox.decrypt(box) : null;
+      const password = uses === 1 && box && pending.passwordExpiresAt > Date.now() ? secretBox.decrypt(box) : null;
       if (!password) {
         req.session.pending = undefined;
         throw unauthenticated('Your sign-in expired. Please sign in again.');
-      }
-      if (!pending.accounts.some((a) => a.id === tenantId)) {
-        req.session.pending = { ...pending }; // allow another pick within the window
-        throw validationError({ tenantId: 'Choose one of your accounts.' });
       }
 
       const tokens = await keycloak.passwordGrant(pending.email, password, tenantId);
@@ -223,13 +229,13 @@ export async function authRoutes(app: FastifyInstance, deps: Deps) {
   app.post(API.auth.mfaVerify, { config: { audit: 'auth.mfa.verify', ...loginRateLimit } }, async (req) => {
     const { passcode } = parseOrThrow(mfaVerifySchema, req.body);
     const p = requireMfaPending(req);
-    const attempts = p.attempts + 1;
+    // Counted atomically outside the session, so parallel guesses can't each see "0 so far" (review M2).
+    const attempts = await shared.incr(`mfa:${p.nonce}`, MFA_TTL_MS);
     if (attempts > MFA_MAX_ATTEMPTS) {
       await keycloak.logout(p.tokens.refreshToken);
       req.session.pending = undefined;
       throw unauthenticated('Too many incorrect codes. Please sign in again.');
     }
-    req.session.pending = { ...p, attempts };
     const ok = await users.verifyMfaCode(vmsFor(req, p.tokens.accessToken), p.to, passcode);
     if (!ok) throw validationError({ passcode: 'That code is not valid. Check it and try again.' }, 'Invalid code');
     return finalize(req, p.tokens, p.user, p.tenantId);
@@ -254,16 +260,22 @@ export async function authRoutes(app: FastifyInstance, deps: Deps) {
   app.post(API.auth.passwordForgot, { config: { audit: 'auth.password.forgot', ...loginRateLimit } }, async (req) => {
     const { email } = parseOrThrow(forgotPasswordSchema, req.body);
     req.auditUser = email;
-    recoveryLimiter.hit(`forgot:${email}`);
-    // Same answer whether or not the email exists.
-    await users.forgotPassword(vmsFor(req), email);
+    await recoveryLimiter.hit(`forgot:${email}`);
+    // Same answer whether or not the email exists — including when VMS answers an unknown email with
+    // an error (review L3); only a real outage is surfaced.
+    try {
+      await users.forgotPassword(vmsFor(req), email);
+    } catch (err) {
+      if (err instanceof AppError && err.code === ERROR_CODES.SERVICE_UNAVAILABLE) throw err;
+      req.log.warn({ code: err instanceof AppError ? err.code : 'unknown' }, 'password recovery request not accepted by VMS');
+    }
     return { ok: true as const };
   });
 
   app.post(API.auth.passwordVerify, { config: { audit: 'auth.password.verify', ...loginRateLimit } }, async (req) => {
     const { email, code } = parseOrThrow(verifyRecoveryCodeSchema, req.body);
     req.auditUser = email;
-    recoveryLimiter.hit(`verify:${email}`);
+    await recoveryLimiter.hit(`verify:${email}`);
     const ok = await users.verifyRecoveryCode(vmsFor(req), email, code);
     if (!ok) throw validationError({ code: 'That code is not valid or has expired.' });
     return { ok: true as const };
@@ -272,7 +284,7 @@ export async function authRoutes(app: FastifyInstance, deps: Deps) {
   app.post(API.auth.passwordReset, { config: { audit: 'auth.password.reset', ...loginRateLimit } }, async (req) => {
     const body = parseOrThrow(resetPasswordSchema, req.body);
     req.auditUser = body.email;
-    recoveryLimiter.hit(`verify:${body.email}`);
+    await recoveryLimiter.hit(`verify:${body.email}`);
     const vms = vmsFor(req);
     // VMS `passwordRecovery/update` does not check the recovery code itself — verify it here first.
     if (!(await users.verifyRecoveryCode(vms, body.email, body.code))) {

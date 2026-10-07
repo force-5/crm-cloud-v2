@@ -1,0 +1,23 @@
+{
+  "title": "Dashboard",
+  "greeting": "Hi, {{name}}",
+  "noAccess": {
+    "title": "No account access",
+    "body": "Your role doesn’t include customer accounts. Ask an administrator if you need access."
+  },
+  "kpi": {
+    "total": "Total accounts",
+    "active": "Active",
+    "inactive": "Inactive",
+    "draft": "Draft",
+    "value": "{{label}}: {{value}}",
+    "loading": "loading"
+  },
+  "recent": {
+    "title": "Recently created accounts",
+    "subtitle": "The newest customer accounts",
+    "viewAll": "View all accounts",
+    "emptyTitle": "No accounts yet",
+    "empty": "New accounts will show up here."
+  }
+}

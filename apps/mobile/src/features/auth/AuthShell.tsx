@@ -2,10 +2,10 @@ import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { brand } from '@crm/tokens';
 import { BrandLockup, IconButton, Text } from '@/components';
 import { useTheme } from '@/providers/ThemeProvider';
-import { SUPPORT_NOTE } from '@/lib/config';
 
 /**
  * Branded sign-in chrome: charcoal hero with the F5 mark + "FORCE 5 CRM",
@@ -25,6 +25,7 @@ export function AuthShell({
 }) {
   const { colors, radius, spacing } = useTheme();
   const router = useRouter();
+  const { t } = useTranslation(['common', 'auth']);
   return (
     <View style={{ flex: 1, backgroundColor: brand.sidebar }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -40,7 +41,7 @@ export function AuthShell({
                 {back ? (
                   <IconButton
                     icon="arrow-back"
-                    label="Back"
+                    label={t('actions.back')}
                     color="#ffffff"
                     onPress={() => (router.canGoBack() ? router.back() : router.replace('/login'))}
                     style={{ alignSelf: 'flex-start', marginLeft: -6 }}
@@ -79,7 +80,7 @@ export function AuthShell({
                 {children}
                 <View style={{ flexGrow: 1 }} />
                 <Text variant="caption" tone="subtle" center>
-                  {SUPPORT_NOTE}
+                  {t('auth:internalOnly')}
                 </Text>
               </View>
             </SafeAreaView>

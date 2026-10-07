@@ -45,10 +45,12 @@ Parameters:
 
   CertificateArn:
     Type: String
-    Default: ''
+    AllowedPattern: '^arn:aws:acm:[a-z0-9-]+:[0-9]{12}:certificate/.+$'
     Description: >-
-      ACM certificate (in this region) for an HTTPS listener on the ALB. Empty = HTTP:80 only, which is
-      how the admin test environment runs. Prod should set it so CloudFront→origin is HTTPS.
+      Required for EVERY stage: ACM certificate (in this region) for the ALB's HTTPS listener. Plain HTTP is
+      not offered (security review M4): passwords and session cookies would cross the internet between
+      CloudFront and the ALB unencrypted, and the BFF's Secure session cookie would never be set, so
+      sign-in can't work. The admin test environment's HTTP-only ALB is not a model to copy here.
 
   InstanceType:
     Type: String
@@ -69,7 +71,6 @@ Parameters:
     Description: Decision D1 (BFF CRM_ALLOWED_ROLES). Can also be set in the secret, which wins.
 
 Conditions:
-  HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
   IsProd: !Equals [!Ref Stage, prod]
 
 Rules:
@@ -135,8 +136,8 @@ Resources:
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: !If [HasCertificate, 443, 80]
-          ToPort: !If [HasCertificate, 443, 80]
+          FromPort: 443
+          ToPort: 443
           SourcePrefixListId: !Ref CloudFrontPrefixListId
           Description: CloudFront origin-facing
       Tags:
@@ -190,23 +191,11 @@ Resources:
         - { Namespace: 'aws:elbv2:loadbalancer', OptionName: SecurityGroups, Value: !Ref LoadBalancerSecurityGroup }
         - { Namespace: 'aws:elbv2:loadbalancer', OptionName: ManagedSecurityGroup, Value: !Ref LoadBalancerSecurityGroup }
 
-        # --- Listeners: HTTPS-only with a certificate, HTTP:80 otherwise ----------------------
-        - !If
-          - HasCertificate
-          - { Namespace: 'aws:elbv2:listener:default', OptionName: ListenerEnabled, Value: 'false' }
-          - !Ref 'AWS::NoValue'
-        - !If
-          - HasCertificate
-          - { Namespace: 'aws:elbv2:listener:443', OptionName: Protocol, Value: HTTPS }
-          - !Ref 'AWS::NoValue'
-        - !If
-          - HasCertificate
-          - { Namespace: 'aws:elbv2:listener:443', OptionName: SSLCertificateArns, Value: !Ref CertificateArn }
-          - !Ref 'AWS::NoValue'
-        - !If
-          - HasCertificate
-          - { Namespace: 'aws:elbv2:listener:443', OptionName: SSLPolicy, Value: ELBSecurityPolicy-TLS13-1-2-2021-06 }
-          - !Ref 'AWS::NoValue'
+        # --- Listener: HTTPS only, no port-80 listener at all (security review M4) ----------------
+        - { Namespace: 'aws:elbv2:listener:default', OptionName: ListenerEnabled, Value: 'false' }
+        - { Namespace: 'aws:elbv2:listener:443', OptionName: Protocol, Value: HTTPS }
+        - { Namespace: 'aws:elbv2:listener:443', OptionName: SSLCertificateArns, Value: !Ref CertificateArn }
+        - { Namespace: 'aws:elbv2:listener:443', OptionName: SSLPolicy, Value: ELBSecurityPolicy-TLS13-1-2-2021-06 }
 
         # --- Health check and deploys (same policy as admin's reference .ebextensions) --------
         - { Namespace: 'aws:elasticbeanstalk:environment:process:default', OptionName: HealthCheckPath, Value: /crm/api/health }

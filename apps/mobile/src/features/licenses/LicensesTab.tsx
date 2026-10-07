@@ -1,5 +1,6 @@
 import { memo, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, RefreshControl, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { statusTone } from '@crm/tokens';
 import {
   PERMISSIONS,
@@ -33,10 +34,12 @@ import { useCurrentUser } from '@/providers/SessionProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useDebounced } from '@/lib/useDebounced';
 import { flattenPages } from '@/lib/paged';
-import { STATUS_OPTIONS } from '@/lib/filters';
+import { useStatusOptions } from '@/lib/filters';
 import { useAddLicense, useAvailableProducts, useLicensesList, useUpdateLicense } from './hooks';
 
 export function LicensesTab({ accountId }: { accountId: number }) {
+  const { t } = useTranslation(['licenses', 'common']);
+  const statusOptions = useStatusOptions();
   const user = useCurrentUser();
   const { colors, spacing } = useTheme();
   const [search, setSearch] = useState('');
@@ -54,22 +57,26 @@ export function LicensesTab({ accountId }: { accountId: number }) {
 
   const toggle = (l: TenantLicense) => {
     const activate = !l.active;
-    Alert.alert(`${activate ? 'Activate' : 'Deactivate'} ${l.productName}?`, undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: activate ? 'Activate' : 'Deactivate',
-        style: activate ? 'default' : 'destructive',
-        onPress: () => update.mutate({ license: l, body: { active: activate } }),
-      },
-    ]);
+    Alert.alert(
+      t(activate ? 'confirm.activateTitle' : 'confirm.deactivateTitle', { name: l.productName }),
+      t(activate ? 'confirm.activateBody' : 'confirm.deactivateBody'),
+      [
+        { text: t('common:actions.cancel'), style: 'cancel' },
+        {
+          text: t(activate ? 'common:actions.activate' : 'common:actions.deactivate'),
+          style: activate ? 'default' : 'destructive',
+          onPress: () => update.mutate({ license: l, body: { active: activate } }),
+        },
+      ],
+    );
   };
 
   const actions: SheetAction[] = menuFor
     ? [
-        { label: 'Edit seats', icon: 'people-outline', onPress: () => setSeatsFor(menuFor) },
+        { label: t('menu.editSeats'), icon: 'people-outline', onPress: () => setSeatsFor(menuFor) },
         menuFor.active
-          ? { label: 'Deactivate', icon: 'pause-circle-outline', destructive: true, onPress: () => toggle(menuFor) }
-          : { label: 'Activate', icon: 'play-circle-outline', onPress: () => toggle(menuFor) },
+          ? { label: t('common:actions.deactivate'), icon: 'pause-circle-outline', destructive: true, onPress: () => toggle(menuFor) }
+          : { label: t('common:actions.activate'), icon: 'play-circle-outline', onPress: () => toggle(menuFor) },
       ]
     : [];
 
@@ -103,11 +110,11 @@ export function LicensesTab({ accountId }: { accountId: number }) {
           <Centered style={{ padding: spacing.lg, gap: spacing.md }}>
             <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
-                <SearchBar value={search} onChangeText={setSearch} placeholder="Search licenses" />
+                <SearchBar value={search} onChangeText={setSearch} placeholder={t('searchPlaceholder')} />
               </View>
-              {canCreate ? <Button title="Add" icon="add" onPress={() => setAdding(true)} /> : null}
+              {canCreate ? <Button title={t('common:actions.add')} icon="add" onPress={() => setAdding(true)} /> : null}
             </View>
-            <Segmented options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+            <Segmented options={statusOptions} value={status} onChange={setStatus} />
           </Centered>
         }
         ListEmptyComponent={
@@ -119,9 +126,9 @@ export function LicensesTab({ accountId }: { accountId: number }) {
             ) : (
               <EmptyState
                 icon="key-outline"
-                title="No licenses"
-                message={debounced ? `Nothing matches "${debounced}".` : 'No product licenses with this status.'}
-                actionLabel={canCreate ? 'Add license' : undefined}
+                title={t('empty.title')}
+                message={debounced ? t('common:empty.noResultsFor', { search: debounced }) : t('empty.statusBody')}
+                actionLabel={canCreate ? t('add') : undefined}
                 onAction={() => setAdding(true)}
               />
             )}
@@ -154,6 +161,7 @@ const LicenseCard = memo(function LicenseCard({
   license: TenantLicense;
   onMore?: (l: TenantLicense) => void;
 }) {
+  const { t } = useTranslation(['licenses', 'common']);
   const { fonts } = useTheme();
   const purchased = l.purchasedCount ?? 0;
   const available = availableSeats(l);
@@ -169,7 +177,7 @@ const LicenseCard = memo(function LicenseCard({
             <StatusBadge status={l.active ? 'active' : 'inactive'} />
           </View>
         </View>
-        {onMore ? <IconButton icon="ellipsis-horizontal" label={`Actions for ${l.productName}`} onPress={() => onMore(l)} /> : null}
+        {onMore ? <IconButton icon="ellipsis-horizontal" label={t('menu.label', { name: l.productName })} onPress={() => onMore(l)} /> : null}
       </View>
       {l.description ? (
         <Text variant="small" tone="muted" numberOfLines={2}>
@@ -185,10 +193,10 @@ const LicenseCard = memo(function LicenseCard({
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <Text>
             <Text weight="black">{l.purchasedCount ?? '—'}</Text>
-            <Text tone="muted"> purchased</Text>
+            <Text tone="muted"> {t('seats.purchasedLabel')}</Text>
           </Text>
           <Text variant="small" tone={over ? 'danger' : 'muted'} weight={over ? 'bold' : 'regular'}>
-            {l.usedCount} used · {available} available
+            {t('seats.usage', { used: l.usedCount, available })}
           </Text>
         </View>
         <ProgressBar value={l.usedCount} max={purchased} danger={over} />
@@ -198,6 +206,7 @@ const LicenseCard = memo(function LicenseCard({
 });
 
 function AddLicenseSheet({ accountId, onClose }: { accountId: number; onClose: () => void }) {
+  const { t } = useTranslation(['licenses', 'common']);
   const products = useAvailableProducts(accountId, true);
   const add = useAddLicense(accountId);
   const [productId, setProductId] = useState<number | null>(null);
@@ -205,26 +214,26 @@ function AddLicenseSheet({ accountId, onClose }: { accountId: number; onClose: (
   const selected = products.data?.find((p) => p.id === productId);
   const options = (products.data ?? []).map((p) => ({
     value: p.id,
-    label: `${p.productName} (${p.licenseTypeDisplay})`,
+    label: t('addDialog.productOption', { name: p.productName, type: p.licenseTypeDisplay }),
     description: p.description,
   }));
 
   return (
-    <BottomSheet visible onClose={onClose} title="Add license" dismissable={!add.isPending}>
+    <BottomSheet visible onClose={onClose} title={t('addDialog.title')} dismissable={!add.isPending}>
       {products.isPending ? (
         <ActivityIndicator />
       ) : products.isError ? (
         <ErrorState error={products.error} onRetry={() => products.refetch()} />
       ) : options.length === 0 ? (
-        <Notice>Every product is already assigned to this account.</Notice>
+        <Notice>{t('addDialog.noneAvailable')}</Notice>
       ) : (
         <>
           <SelectField<number>
-            label="Product"
+            label={t('addDialog.product')}
             options={options}
             value={productId}
             onChange={setProductId}
-            placeholder="Choose a product"
+            placeholder={t('addDialog.chooseProduct')}
             searchable
           />
           {selected ? (
@@ -240,13 +249,13 @@ function AddLicenseSheet({ accountId, onClose }: { accountId: number; onClose: (
               </Text>
             </View>
           ) : null}
-          <Stepper label="Seats" value={seats} onChange={setSeats} min={1} />
+          <Stepper label={t('addDialog.seats')} value={seats} onChange={setSeats} min={1} />
         </>
       )}
       <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Button title="Cancel" variant="secondary" flex onPress={onClose} disabled={add.isPending} />
+        <Button title={t('common:actions.cancel')} variant="secondary" flex onPress={onClose} disabled={add.isPending} />
         <Button
-          title="Add license"
+          title={t('addDialog.submit')}
           flex
           disabled={!productId}
           loading={add.isPending}
@@ -270,22 +279,23 @@ function EditSeatsSheet({
   onClose: () => void;
   onSave: (n: number) => void;
 }) {
+  const { t } = useTranslation(['licenses', 'common']);
   const [seats, setSeats] = useState(Math.max(1, license.purchasedCount ?? 1));
   const belowUsed = seats < license.usedCount;
   return (
-    <BottomSheet visible onClose={onClose} title={`Seats · ${license.productName}`} dismissable={!saving}>
+    <BottomSheet visible onClose={onClose} title={t('editSeats.title', { name: license.productName })} dismissable={!saving}>
       <Text tone="muted" variant="small">
-        {license.usedCount} seat{license.usedCount === 1 ? ' is' : 's are'} in use.
+        {t('seats.inUse', { count: license.usedCount })}
       </Text>
-      <Stepper label="Purchased seats" value={seats} onChange={setSeats} min={1} />
+      <Stepper label={t('editSeats.label')} value={seats} onChange={setSeats} min={1} />
       {belowUsed ? (
         <Notice tone="warning">
-          {`This is fewer than the ${license.usedCount} seats in use. The account will be over-allocated.`}
+          {t('editSeats.belowUsed', { used: license.usedCount })}
         </Notice>
       ) : null}
       <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Button title="Cancel" variant="secondary" flex onPress={onClose} disabled={saving} />
-        <Button title="Save seats" flex loading={saving} disabled={seats === license.purchasedCount} onPress={() => onSave(seats)} />
+        <Button title={t('common:actions.cancel')} variant="secondary" flex onPress={onClose} disabled={saving} />
+        <Button title={t('editSeats.save')} flex loading={saving} disabled={seats === license.purchasedCount} onPress={() => onSave(seats)} />
       </View>
     </BottomSheet>
   );

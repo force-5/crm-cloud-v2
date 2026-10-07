@@ -14,6 +14,12 @@ import { useApi } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { usePatchUser } from './api';
 
+/**
+ * Authenticator apps stay off until VMS change V4: VMS doesn't actually verify TOTP codes yet, so enabling
+ * it would make MFA accept any code. The BFF refuses it too (security review L6). Flip both together.
+ */
+const TOTP_ENABLED = false;
+
 function TotpSetup({ enrollment, onDone, saving }: { enrollment: TotpEnrollment; onDone: () => void; saving: boolean }) {
   const { t } = useTranslation('profile');
   const [qr, setQr] = React.useState<string | null>(null);
@@ -100,6 +106,7 @@ export function SecurityTab({ user }: { user: CurrentUser }) {
   const chooseMethod = (next: MfaType) => {
     if (next === method) return;
     if (next === 'totp') {
+      if (!TOTP_ENABLED) return;
       enroll.mutate();
       return;
     }
@@ -147,9 +154,10 @@ export function SecurityTab({ user }: { user: CurrentUser }) {
               className="w-full sm:w-auto"
               options={[
                 { value: 'sms', label: t('security.sms') },
-                { value: 'totp', label: t('security.totp') },
+                { value: 'totp', label: t('security.totp'), disabled: !TOTP_ENABLED },
               ]}
             />
+            {!TOTP_ENABLED && <p className="m-0 mt-2 text-[12px] text-text-muted">{t('security.totpUnavailable')}</p>}
             {method === 'sms' && !enrollment && (
               <p className="m-0 mt-2.5 text-[13px] text-text-muted">
                 {user.mobilePhone ? t('security.smsTo', { phone: user.mobilePhone }) : t('security.smsNoPhone')}

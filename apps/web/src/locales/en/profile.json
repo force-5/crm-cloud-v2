@@ -58,7 +58,8 @@
     "passwordTitle": "Password",
     "passwordNote": "Self-service password changes are coming soon (VMS change V5). Until then, use",
     "passwordLink": "Forgot password",
-    "passwordNoteEnd": "to set a new password."
+    "passwordNoteEnd": "to set a new password.",
+    "totpUnavailable": "Authenticator apps aren’t available yet — they need a VMS update (change V4). Use text-message codes for now."
   },
   "appearance": {
     "title": "Theme",

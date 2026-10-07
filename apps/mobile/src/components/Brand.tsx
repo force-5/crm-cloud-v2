@@ -1,10 +1,12 @@
 import { View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/providers/ThemeProvider';
 import { Text } from './Text';
 
 /** The orange rounded-square "F5" mark from the prototype sidebar. */
 export function F5Mark({ size = 34 }: { size?: number }) {
   const { fonts } = useTheme();
+  const { t } = useTranslation();
   return (
     <View
       accessibilityElementsHidden
@@ -28,7 +30,7 @@ export function F5Mark({ size = 34 }: { size?: number }) {
           paddingTop: size * 0.06,
         }}
       >
-        F5
+        {t('brand.mark')}
       </Text>
     </View>
   );
@@ -37,11 +39,12 @@ export function F5Mark({ size = 34 }: { size?: number }) {
 /** Mark + "FORCE 5" (Bebas Neue) + "CRM" eyebrow. `onDark` for charcoal backgrounds. */
 export function BrandLockup({ size = 'md', onDark }: { size?: 'md' | 'lg'; onDark?: boolean }) {
   const { colors, fonts } = useTheme();
+  const { t } = useTranslation();
   const big = size === 'lg';
   return (
     <View
       accessible
-      accessibilityLabel="Force 5 CRM"
+      accessibilityLabel={t('appName')}
       style={{ flexDirection: 'row', alignItems: 'center', gap: big ? 14 : 10 }}
     >
       <F5Mark size={big ? 52 : 34} />
@@ -56,7 +59,7 @@ export function BrandLockup({ size = 'md', onDark }: { size?: 'md' | 'lg'; onDar
             paddingTop: 4,
           }}
         >
-          FORCE 5
+          {t('brand.name').toUpperCase()}
         </Text>
         <Text
           style={{
@@ -66,7 +69,7 @@ export function BrandLockup({ size = 'md', onDark }: { size?: 'md' | 'lg'; onDar
             color: onDark ? '#9299a3' : colors.textSubtle,
           }}
         >
-          CRM
+          {t('brand.product')}
         </Text>
       </View>
     </View>
