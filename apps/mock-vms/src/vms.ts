@@ -732,12 +732,13 @@ export function registerVms(app: FastifyInstance, db: Db, keys: KeyMaterial, opt
         return paged<Row>(reply, req.query as Query, rows, {
           search: (r) => [r.productName, r.productCode, r.productSku, r.description, r.category],
           active: (r) => r.active,
+          // Real VMS sorts on TenantProductLicense entity paths; DTO names like `productName` → 500.
           sortable: {
-            productName: (r) => r.productName,
-            licenseType: (r) => r.licenseType,
-            category: (r) => r.category,
-            productCode: (r) => r.productCode,
-            licenseCount: (r) => r.licenseCount,
+            'productLicense.product.name': (r) => r.productName,
+            'productLicense.licenseType.description': (r) => r.licenseTypeDisplay,
+            'productLicense.product.productCategory.description': (r) => r.category,
+            'productLicense.product.productCode': (r) => r.productCode,
+            purchasedLicenseCount: (r) => r.licenseCount,
             registeredLicenseCount: (r) => r.registeredLicenseCount,
             active: (r) => r.active,
             dateCreated: (r) => r.dateCreated,

@@ -90,6 +90,7 @@ export const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as
  * The editable account fields. Format rules apply whenever a field is filled in;
  * "required" rules apply only on Publish / Save changes (see `validateAccountForPublish`).
  */
+/** Max lengths follow the VMS `tenant` columns (verified 2026-10-06). */
 export const accountFormSchema = z.object({
   name: z.string().trim().min(1, 'Company name is required').max(100),
   languageId: idField(),
@@ -100,15 +101,15 @@ export const accountFormSchema = z.object({
   active: z.boolean().default(true),
   mainContactFirstName: emptyToUndefined(z.string().trim().max(50)),
   mainContactLastName: emptyToUndefined(z.string().trim().max(50)),
-  mainContactEmail: emptyToUndefined(email),
+  mainContactEmail: emptyToUndefined(email.max(50)),
   mainContactMobile: emptyToUndefined(phone),
   mainContactPhone: emptyToUndefined(phone),
   countryId: idField(),
   address: emptyToUndefined(z.string().trim().max(200)),
-  city: emptyToUndefined(z.string().trim().max(100)),
+  city: emptyToUndefined(z.string().trim().max(50)),
   stateId: idField(),
   provinceOrRegion: emptyToUndefined(z.string().trim().max(100)),
-  postalCode: emptyToUndefined(z.string().trim().max(20)),
+  postalCode: emptyToUndefined(z.string().trim().max(12)),
 });
 export type AccountFormValues = z.input<typeof accountFormSchema>;
 export type AccountFormData = z.output<typeof accountFormSchema>;

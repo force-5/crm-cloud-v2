@@ -7,6 +7,7 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      '**/eb-bundle/**', // CodeBuild bundle output (scripts/smoke-boot.sh)
       '**/node_modules/**',
       '**/routeTree.gen.ts',
       'apps/mobile/.expo/**',

@@ -25,6 +25,15 @@ test('production bundle renders the login page', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('the bare app URL loads the app (regression: /crm/ was a 403)', async ({ page }) => {
+  const errors = trackErrors(page);
+  const res = await page.goto('./'); // baseURL is …/crm/, so this is exactly /crm/
+  expect(res?.status()).toBe(200);
+  // Signed out: the session probe answers 401 (the browser logs it) and the app routes to sign-in.
+  await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  expect(errors.filter((e) => !e.includes('status of 401'))).toEqual([]);
+});
+
 test('sign in, browse accounts and open an account', async ({ page }) => {
   const errors = trackErrors(page);
   await signIn(page);

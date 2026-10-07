@@ -1,5 +1,6 @@
 import { formatInTimeZone } from 'date-fns-tz';
 import { useQuery } from '@tanstack/react-query';
+import { useApi } from './api';
 import { queryKeys } from '@crm/api-client';
 import type { SessionInfo } from '@crm/contracts';
 import { useCallback } from 'react';
@@ -40,7 +41,14 @@ export function formatDate(iso: string | undefined | null, timeZone: string, fmt
 
 /** Formats ISO timestamps in the signed-in user's timezone (user → tenant → America/New_York). */
 export function useFormatDate(): (iso: string | undefined | null, fmt?: DateFormat) => string {
-  const { data: session } = useQuery<SessionInfo>({ queryKey: queryKeys.session, enabled: false, staleTime: Infinity });
+  const api = useApi();
+  // Passive read of the cached session (works on public pages too, where there is none).
+  const { data: session } = useQuery<SessionInfo>({
+    queryKey: queryKeys.session,
+    queryFn: () => api.auth.session(),
+    enabled: false,
+    staleTime: Infinity,
+  });
   const tz = resolveTimeZone(session);
   return useCallback((iso, fmt = 'date') => formatDate(iso, tz, fmt), [tz]);
 }

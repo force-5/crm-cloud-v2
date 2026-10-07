@@ -31,25 +31,85 @@ export async function verifyAccessToken(keys: KeyMaterial, token: string): Promi
 
 type RefreshEntry = { email: string; tenantId: number; sid: string; expiresAt: number };
 
-export type KeycloakOptions = { accessTtlSeconds: number; refreshTtlSeconds: number; issuer: string };
+export type KeycloakOptions = {
+  accessTtlSeconds: number;
+  refreshTtlSeconds: number;
+  issuer: string;
+  /**
+   * When set, credentials are checked against a real VMS (`POST {vmsUrl}authenticate`) instead of the
+   * seed users — the same check the real Keycloak "F5 Gatekeeper" SPI makes against the VMS database.
+   * Lets the BFF run against a local vmsServer, whose `local` profile does not verify token signatures.
+   */
+  vmsUrl?: string;
+};
+
+type TenantRef = { id: number; name: string };
+
+/** Where the mock Keycloak looks users up: the in-memory seed, or a real VMS. */
+type Directory = {
+  /** Tenants the user belongs to; with a password, only when the credentials are valid. */
+  tenantsFor(email: string, password?: string, requestedTenant?: number): Promise<TenantRef[]>;
+  userId(email: string, tenantId: number): string;
+};
+
+function seedDirectory(db: Db): Directory {
+  return {
+    async tenantsFor(email, password) {
+      return db.users
+        .filter(
+          (u) =>
+            u.active && u.email.toLowerCase() === email.toLowerCase() && (password === undefined || u.password === password),
+        )
+        .map((u) => db.tenants.find((t) => t.id === u.tenantId))
+        .filter((t): t is NonNullable<typeof t> => !!t)
+        .map((t) => ({ id: t.id, name: t.name }));
+    },
+    userId(email, tenantId) {
+      const user = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase() && u.tenantId === tenantId);
+      return String(user?.id ?? 0);
+    },
+  };
+}
+
+function vmsDirectory(vmsUrl: string): Directory {
+  // VMS can only verify a password for one tenant at a time, so the `tenants` claim lists the tenants
+  // the user has successfully signed in to (multi-tenant pickers aren't exercised in this mode).
+  const known = new Map<string, { tenants: TenantRef[]; ids: Map<number, string> }>();
+  return {
+    async tenantsFor(email, password, requestedTenant) {
+      const key = email.toLowerCase();
+      if (password === undefined) return known.get(key)?.tenants ?? [];
+      const res = await fetch(new URL('authenticate', vmsUrl), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email, password, tenantId: requestedTenant ?? 1 }),
+      });
+      const text = res.ok ? await res.text() : '';
+      if (!text) return []; // VMS answers bad credentials with 200 + empty body (V11)
+      const user = (JSON.parse(text) as { user?: { id?: number; tenant?: { id?: number; name?: string } } }).user;
+      if (!user?.tenant?.id) return [];
+      const entry = known.get(key) ?? { tenants: [] as TenantRef[], ids: new Map<number, string>() };
+      if (!entry.tenants.some((t) => t.id === user.tenant!.id)) {
+        entry.tenants.push({ id: user.tenant.id, name: user.tenant.name ?? `Tenant ${user.tenant.id}` });
+      }
+      entry.ids.set(user.tenant.id, String(user.id ?? 0));
+      known.set(key, entry);
+      return entry.tenants;
+    },
+    userId(email, tenantId) {
+      return known.get(email.toLowerCase())?.ids.get(tenantId) ?? '0';
+    },
+  };
+}
 
 /** Mock of Keycloak realm `gatekeeper`: realm info, password/refresh grants, logout. */
 export function registerKeycloak(app: FastifyInstance, db: Db, keys: KeyMaterial, opts: KeycloakOptions) {
   const refreshTokens = new Map<string, RefreshEntry>();
 
-  const tenantsFor = (email: string, password?: string) => {
-    const matches = db.users.filter(
-      (u) => u.active && u.email.toLowerCase() === email.toLowerCase() && (password === undefined || u.password === password),
-    );
-    return matches
-      .map((u) => db.tenants.find((t) => t.id === u.tenantId))
-      .filter((t): t is NonNullable<typeof t> => !!t)
-      .map((t) => ({ id: t.id, name: t.name }));
-  };
+  const directory = opts.vmsUrl ? vmsDirectory(opts.vmsUrl) : seedDirectory(db);
 
   const issue = async (email: string, tenantId: number, sid: string) => {
-    const tenants = tenantsFor(email);
-    const user = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase() && u.tenantId === tenantId);
+    const tenants = await directory.tenantsFor(email);
     const now = Math.floor(Date.now() / 1000);
     const access_token = await new SignJWT({
       email,
@@ -61,7 +121,7 @@ export function registerKeycloak(app: FastifyInstance, db: Db, keys: KeyMaterial
       typ: 'Bearer',
     })
       .setProtectedHeader({ alg: 'RS256', typ: 'JWT', kid: 'mock-key' })
-      .setSubject(String(user?.id ?? 0))
+      .setSubject(directory.userId(email, tenantId))
       .setIssuer(opts.issuer)
       .setIssuedAt(now)
       .setExpirationTime(now + opts.accessTtlSeconds)
@@ -104,7 +164,7 @@ export function registerKeycloak(app: FastifyInstance, db: Db, keys: KeyMaterial
 
     if (form.grant_type === 'password') {
       const email = (form.username ?? '').trim();
-      const tenants = tenantsFor(email, form.password ?? '');
+      const tenants = email ? await directory.tenantsFor(email, form.password ?? '', requestedTenant) : [];
       if (!email || tenants.length === 0) {
         return reply.code(401).send({ error: 'invalid_grant', error_description: 'Invalid user credentials' });
       }
@@ -119,7 +179,7 @@ export function registerKeycloak(app: FastifyInstance, db: Db, keys: KeyMaterial
       if (!entry || entry.expiresAt < Date.now()) {
         return reply.code(400).send({ error: 'invalid_grant', error_description: 'Token is not active' });
       }
-      const tenants = tenantsFor(entry.email);
+      const tenants = await directory.tenantsFor(entry.email);
       const tenantId = tenants.some((t) => t.id === requestedTenant) ? requestedTenant! : entry.tenantId;
       return issue(entry.email, tenantId, entry.sid);
     }

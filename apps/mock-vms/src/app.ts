@@ -12,6 +12,8 @@ export type MockOptions = {
   refreshTtlSeconds?: number;
   /** Serve the mock-only `POST tenant/setup/publish/{id}` (V3). Default true. */
   supportPublishDraft?: boolean;
+  /** Check Keycloak logins against this real VMS instead of the seed users (see KeycloakOptions.vmsUrl). */
+  keycloakVmsUrl?: string;
   logger?: boolean;
   log?: (msg: string) => void;
 };
@@ -41,6 +43,7 @@ export async function buildMockVms(opts: MockOptions = {}): Promise<MockVms> {
   const kcOpts = {
     accessTtlSeconds: opts.accessTtlSeconds ?? 1800,
     refreshTtlSeconds: opts.refreshTtlSeconds ?? 36000,
+    vmsUrl: opts.keycloakVmsUrl,
     get issuer() {
       return `${urls.publicUrl}/realms/${REALM}`;
     },

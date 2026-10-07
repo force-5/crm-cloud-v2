@@ -1,0 +1,12 @@
+# gitleaks configuration — mirrors admin-cloud-v2. Extends the maintained default ruleset rather than
+# hand-rolling patterns, so new provider formats are picked up as gitleaks updates.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Reviewed non-findings. Every entry needs a reason and, where it is temporary, an exit condition."
+paths = [
+    # Lockfile integrity hashes are not secrets.
+    '''pnpm-lock\.yaml''',
+]

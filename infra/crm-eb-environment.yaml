@@ -1,0 +1,255 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Force 5 CRM v2 — Elastic Beanstalk application + environment (Node.js 22 on Amazon Linux 2023),
+  its dedicated instance role, and the load balancer security group. One stack per stage:
+  test in us-east-1, prod in us-east-2 (same split as admin-cloud-v2). The pipeline that deploys
+  into this environment is infra/crm-pipeline.yaml. See docs/DEPLOYMENT.md.
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues: [test, prod]
+    Description: test (us-east-1) or prod (us-east-2). Drives names, APP_ENV and the secret the app reads.
+
+  SolutionStackName:
+    Type: String
+    Description: >-
+      Exact EB platform, e.g. "64bit Amazon Linux 2023 v6.x.y running Node.js 22". Look up the current
+      name with: aws elasticbeanstalk list-available-solution-stacks --region <region>
+      --query "SolutionStacks[?contains(@, 'Node.js 22')]"
+
+  EbServiceRoleName:
+    Type: String
+    Default: aws-elasticbeanstalk-service-role
+    Description: Existing EB service role (shared, as for admin).
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  InstanceSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnets for the instances (private in prod, as for admin/Keycloak).
+  LoadBalancerSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Public subnets for the application load balancer.
+  AssociatePublicIp:
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'false'
+    Description: true only if InstanceSubnets are public subnets without a NAT route.
+
+  CloudFrontPrefixListId:
+    Type: String
+    Description: >-
+      Managed prefix list com.amazonaws.global.cloudfront.origin-facing IN THIS REGION (the id differs
+      per region; the legacy CRM's us-east-2 ALB uses pl-b6a144df). The ALB only accepts CloudFront.
+
+  CertificateArn:
+    Type: String
+    Default: ''
+    Description: >-
+      ACM certificate (in this region) for an HTTPS listener on the ALB. Empty = HTTP:80 only, which is
+      how the admin test environment runs. Prod should set it so CloudFront→origin is HTTPS.
+
+  InstanceType:
+    Type: String
+    Default: t3.small
+  MinInstances:
+    Type: Number
+    Default: 1
+    Description: >-
+      Prod should use 2. More than 1 REQUIRES REDIS_URL in the secret: the in-memory session store is
+      per instance, so users would be signed out whenever the ALB switched instances.
+  MaxInstances:
+    Type: Number
+    Default: 2
+
+  CrmAllowedRoles:
+    Type: String
+    Default: CRM_ADMIN,ROLE_ADMIN
+    Description: Decision D1 (BFF CRM_ALLOWED_ROLES). Can also be set in the secret, which wins.
+
+Conditions:
+  HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
+  IsProd: !Equals [!Ref Stage, prod]
+
+Rules:
+  # The app pins prod → us-east-2 and test → us-east-1 when it reads its secret (apps/bff/src/aws-secrets.ts).
+  # Deploying a stage into the other region would start an app that can't find its configuration.
+  StageMatchesRegion:
+    Assertions:
+      - Assert: !Or
+          - !And [!Equals [!Ref Stage, prod], !Equals [!Ref 'AWS::Region', us-east-2]]
+          - !And [!Equals [!Ref Stage, test], !Equals [!Ref 'AWS::Region', us-east-1]]
+        AssertDescription: Stage prod must be deployed in us-east-2 and test in us-east-1.
+
+Resources:
+
+  # ==========================================================================
+  # Instance role — dedicated to this app. The legacy CRM uses the shared aws-elasticbeanstalk-ec2-role,
+  # which carries AmazonS3FullAccess; this one gets the EB web-tier basics plus read access to exactly
+  # one secret.
+  # ==========================================================================
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'crm-${Stage}-eb-instance-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # EB agent, log streaming to CloudWatch, and the EB S3 bucket for app versions.
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AWSElasticBeanstalkWebTier'
+        # Session Manager access instead of SSH keys.
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
+      Policies:
+        - PolicyName: !Sub 'crm-${Stage}-read-config-secret'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ReadOwnConfigSecret
+                Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                # Secrets Manager appends a random 6-character suffix, so the exact ARN isn't knowable.
+                Resource: !Sub
+                  - 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}-*'
+                  - SecretName: !If [IsProd, prod/crm/config, test/crm/config]
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub 'crm-${Stage}-eb-instance-profile'
+      Roles: [!Ref InstanceRole]
+
+  # ==========================================================================
+  # Load balancer security group — only CloudFront may reach the ALB (same rule as the legacy CRM and
+  # admin prod). EB manages the instance security group and allows traffic from this one.
+  # ==========================================================================
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub 'crm-${Stage}-alb'
+      GroupDescription: !Sub 'CRM ${Stage} ALB - CloudFront origin-facing traffic only'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !If [HasCertificate, 443, 80]
+          ToPort: !If [HasCertificate, 443, 80]
+          SourcePrefixListId: !Ref CloudFrontPrefixListId
+          Description: CloudFront origin-facing
+      Tags:
+        - { Key: Application, Value: crm-v2 }
+        - { Key: Environment, Value: !Ref Stage }
+
+  # ==========================================================================
+  # Elastic Beanstalk
+  # ==========================================================================
+  Application:
+    Type: AWS::ElasticBeanstalk::Application
+    Properties:
+      ApplicationName: !Sub 'crm-v2-${Stage}'
+      Description: Force 5 CRM v2 (React SPA + Fastify BFF)
+      ResourceLifecycleConfig:
+        ServiceRole: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${EbServiceRoleName}'
+        VersionLifecycleConfig:
+          MaxCountRule:
+            Enabled: true
+            MaxCount: 50
+            DeleteSourceFromS3: true
+
+  Environment:
+    Type: AWS::ElasticBeanstalk::Environment
+    Properties:
+      ApplicationName: !Ref Application
+      EnvironmentName: !Sub 'crm-v2-${Stage}-env'
+      Description: !Sub 'Force 5 CRM v2 ${Stage}'
+      SolutionStackName: !Ref SolutionStackName
+      Tier: { Name: WebServer, Type: Standard }
+      Tags:
+        - { Key: Application, Value: crm-v2 }
+        - { Key: Environment, Value: !Ref Stage }
+      OptionSettings:
+        # --- Environment and roles -----------------------------------------------------------
+        - { Namespace: 'aws:elasticbeanstalk:environment', OptionName: EnvironmentType, Value: LoadBalanced }
+        - { Namespace: 'aws:elasticbeanstalk:environment', OptionName: LoadBalancerType, Value: application }
+        - { Namespace: 'aws:elasticbeanstalk:environment', OptionName: ServiceRole, Value: !Ref EbServiceRoleName }
+        - { Namespace: 'aws:autoscaling:launchconfiguration', OptionName: IamInstanceProfile, Value: !Ref InstanceProfile }
+        - { Namespace: 'aws:autoscaling:launchconfiguration', OptionName: InstanceType, Value: !Ref InstanceType }
+        - { Namespace: 'aws:autoscaling:launchconfiguration', OptionName: DisableIMDSv1, Value: 'true' }
+        - { Namespace: 'aws:autoscaling:asg', OptionName: MinSize, Value: !Ref MinInstances }
+        - { Namespace: 'aws:autoscaling:asg', OptionName: MaxSize, Value: !Ref MaxInstances }
+
+        # --- Networking ----------------------------------------------------------------------
+        - { Namespace: 'aws:ec2:vpc', OptionName: VPCId, Value: !Ref VpcId }
+        - { Namespace: 'aws:ec2:vpc', OptionName: Subnets, Value: !Join [',', !Ref InstanceSubnets] }
+        - { Namespace: 'aws:ec2:vpc', OptionName: ELBSubnets, Value: !Join [',', !Ref LoadBalancerSubnets] }
+        - { Namespace: 'aws:ec2:vpc', OptionName: ELBScheme, Value: public }
+        - { Namespace: 'aws:ec2:vpc', OptionName: AssociatePublicIpAddress, Value: !Ref AssociatePublicIp }
+        - { Namespace: 'aws:elbv2:loadbalancer', OptionName: SecurityGroups, Value: !Ref LoadBalancerSecurityGroup }
+        - { Namespace: 'aws:elbv2:loadbalancer', OptionName: ManagedSecurityGroup, Value: !Ref LoadBalancerSecurityGroup }
+
+        # --- Listeners: HTTPS-only with a certificate, HTTP:80 otherwise ----------------------
+        - !If
+          - HasCertificate
+          - { Namespace: 'aws:elbv2:listener:default', OptionName: ListenerEnabled, Value: 'false' }
+          - !Ref 'AWS::NoValue'
+        - !If
+          - HasCertificate
+          - { Namespace: 'aws:elbv2:listener:443', OptionName: Protocol, Value: HTTPS }
+          - !Ref 'AWS::NoValue'
+        - !If
+          - HasCertificate
+          - { Namespace: 'aws:elbv2:listener:443', OptionName: SSLCertificateArns, Value: !Ref CertificateArn }
+          - !Ref 'AWS::NoValue'
+        - !If
+          - HasCertificate
+          - { Namespace: 'aws:elbv2:listener:443', OptionName: SSLPolicy, Value: ELBSecurityPolicy-TLS13-1-2-2021-06 }
+          - !Ref 'AWS::NoValue'
+
+        # --- Health check and deploys (same policy as admin's reference .ebextensions) --------
+        - { Namespace: 'aws:elasticbeanstalk:environment:process:default', OptionName: HealthCheckPath, Value: /crm/api/health }
+        - { Namespace: 'aws:elasticbeanstalk:environment:process:default', OptionName: MatcherHTTPCode, Value: '200' }
+        - { Namespace: 'aws:elasticbeanstalk:environment:process:default', OptionName: HealthCheckInterval, Value: '10' }
+        - { Namespace: 'aws:elasticbeanstalk:environment:process:default', OptionName: DeregistrationDelay, Value: '30' }
+        - { Namespace: 'aws:elasticbeanstalk:healthreporting:system', OptionName: SystemType, Value: enhanced }
+        - { Namespace: 'aws:elasticbeanstalk:command', OptionName: DeploymentPolicy, Value: RollingWithAdditionalBatch }
+        - { Namespace: 'aws:elasticbeanstalk:command', OptionName: BatchSizeType, Value: Fixed }
+        - { Namespace: 'aws:elasticbeanstalk:command', OptionName: BatchSize, Value: '1' }
+        # Never ignore health: a bundle that boots unhealthy must roll back (the legacy CRM ignores it).
+        - { Namespace: 'aws:elasticbeanstalk:command', OptionName: IgnoreHealthCheck, Value: 'false' }
+        - { Namespace: 'aws:autoscaling:updatepolicy:rollingupdate', OptionName: RollingUpdateEnabled, Value: 'true' }
+        - { Namespace: 'aws:autoscaling:updatepolicy:rollingupdate', OptionName: RollingUpdateType, Value: Health }
+
+        # --- Logs: stream app stdout/stderr to CloudWatch, 365 days (SOC 2) -------------------
+        # The Node.js platform writes the app's (pino JSON) output to /var/log/web.stdout.log, which EB
+        # streams natively, so admin's Tomcat log hooks aren't needed here.
+        - { Namespace: 'aws:elasticbeanstalk:cloudwatch:logs', OptionName: StreamLogs, Value: 'true' }
+        - { Namespace: 'aws:elasticbeanstalk:cloudwatch:logs', OptionName: RetentionInDays, Value: '365' }
+        - { Namespace: 'aws:elasticbeanstalk:cloudwatch:logs', OptionName: DeleteOnTerminate, Value: 'false' }
+        - { Namespace: 'aws:elasticbeanstalk:cloudwatch:logs:health', OptionName: HealthStreamingEnabled, Value: 'true' }
+        - { Namespace: 'aws:elasticbeanstalk:cloudwatch:logs:health', OptionName: RetentionInDays, Value: '365' }
+
+        # --- App configuration (non-secret only; secrets come from Secrets Manager) -----------
+        # APP_ENV selects the pinned region + secret in apps/bff/src/aws-secrets.ts.
+        - { Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: APP_ENV, Value: !If [IsProd, production, staging] }
+        - { Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: NODE_ENV, Value: production }
+        - { Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: BASE_PATH, Value: /crm }
+        - { Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: LOG_LEVEL, Value: info }
+        - { Namespace: 'aws:elasticbeanstalk:application:environment', OptionName: CRM_ALLOWED_ROLES, Value: !Ref CrmAllowedRoles }
+
+Outputs:
+  ApplicationName:
+    Value: !Ref Application
+  EnvironmentName:
+    Value: !Ref Environment
+  EnvironmentUrl:
+    Description: ALB DNS name — the CloudFront origin.
+    Value: !GetAtt Environment.EndpointURL
+  InstanceRoleName:
+    Description: Pass this to infra/crm-pipeline.yaml (its PassRole guardrail allows exactly this role).
+    Value: !Ref InstanceRole
+  ConfigSecretName:
+    Description: Create this secret before the first deploy (docs/DEPLOYMENT.md).
+    Value: !If [IsProd, prod/crm/config, test/crm/config]

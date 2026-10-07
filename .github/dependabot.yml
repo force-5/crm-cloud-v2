@@ -1,0 +1,48 @@
+version: 2
+
+updates:
+  # pnpm workspace: every app and package shares one lockfile.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "deps"
+    groups:
+      # Minor/patch dev tooling lands as one PR rather than a dozen.
+      dev-tooling:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+    ignore:
+      # The Expo SDK pins these as a set (apps/mobile). Upgrade them together with
+      # `npx expo install --fix` on an SDK bump, never one at a time.
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "@expo/*"
+      - dependency-name: "@expo-google-fonts/*"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
+      # React is pinned to the version the Expo SDK requires, so web and mobile share one copy.
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "@types/react"
+      - dependency-name: "@types/react-dom"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "deps(actions)"

@@ -193,6 +193,38 @@ describe('user mapping', () => {
     const u = mapCurrentUser(vmsAuthUserSchema.parse({ id: 1, email: 'x@y.z', themeName: 'null' }));
     expect(u.themeName).toBe('system');
   });
+
+  it('drops the codeless duplicate roles real VMS emits', () => {
+    // Shape observed from local vmsServer `POST authenticate` (2026-10-06).
+    const u = mapCurrentUser(
+      vmsAuthUserSchema.parse({
+        id: 4,
+        email: 'crmadmin@force5.com',
+        roles: [
+          { code: null, name: 'CRM Admin', shortDisplay: null },
+          { code: 'CRM_ADMIN', name: 'CRM Admin', shortDisplay: null },
+        ],
+        securityRoles: [],
+        securityPermissions: [],
+      }),
+    );
+    expect(u.securityRoles).toEqual([{ code: 'CRM_ADMIN', name: 'CRM Admin' }]);
+  });
+
+  it('reads the nested role code that signedInUser returns, skipping inactive roles', () => {
+    // Shape observed from local vmsServer `GET signedInUser` (2026-10-06).
+    const u = mapCurrentUser(
+      vmsAuthUserSchema.parse({
+        id: 4,
+        email: 'crmadmin@force5.com',
+        roles: [
+          { id: 313, name: 'CRM Admin', active: true, securityRole: { id: 8, code: 'CRM_ADMIN', name: 'CRM Admin' } },
+          { id: 2, name: null, active: false, securityRole: { id: 2, code: 'ROLE_ADMIN', name: 'Administrator' } },
+        ],
+      }),
+    );
+    expect(u.securityRoles).toEqual([{ code: 'CRM_ADMIN', name: 'CRM Admin' }]);
+  });
 });
 
 describe('errors and helpers', () => {

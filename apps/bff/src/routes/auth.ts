@@ -14,7 +14,7 @@ import {
 } from '@crm/contracts';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { ensureCsrfToken, rotateCsrfToken } from '../auth/csrf';
-import { isCrmUser } from '../auth/guard';
+import { isCrmUser, withCrmGrants } from '../auth/guard';
 import type { TokenSet } from '../auth/keycloak';
 import { SESSION_COOKIE } from '../auth/session';
 import type { Deps } from '../deps';
@@ -63,7 +63,7 @@ export async function authRoutes(app: FastifyInstance, deps: Deps) {
     }
     await req.session.regenerate();
     const now = Date.now();
-    req.session.auth = { ...tokens, tenantId, user, loginAt: now };
+    req.session.auth = { ...tokens, tenantId, user: withCrmGrants(user, config.crm), loginAt: now };
     req.session.lastSeen = now;
     rotateCsrfToken(req.session);
     loginLimiter.reset(user.email);

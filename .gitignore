@@ -17,3 +17,6 @@ apps/mobile/android/
 # playwright
 test-results/
 playwright-report/
+
+# CodeBuild bundle output
+eb-bundle/

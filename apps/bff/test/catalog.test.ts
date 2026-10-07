@@ -22,7 +22,7 @@ describe('licenses', () => {
     expect(kiosk).toMatchObject({ purchasedCount: 10, usedCount: 14, licenseType: 'SUBSCRIPTION', licenseTypeDisplay: 'Subscription', active: true });
     const api = r.json.items.find((l: { productName: string }) => l.productName === 'API');
     expect(api).toMatchObject({ purchasedCount: null, licenseTypeDisplay: 'Usage Based' });
-    expect(new URL(lastCall(/tenantProductLicense\/5$/)!.url, 'http://x').searchParams.getAll('sort')).toEqual(['productName,asc']);
+    expect(new URL(lastCall(/tenantProductLicense\/5$/)!.url, 'http://x').searchParams.getAll('sort')).toEqual(['productLicense.product.name,asc']);
   });
 
   it('available products exclude the ones already assigned', async () => {
@@ -80,11 +80,11 @@ describe('products', () => {
     const id = created.json.product.id;
     expect(created.json.product).toMatchObject({ name: 'Badge Printer', category: 'Platform' });
 
-    const dupe = await c.post('/products', { name: 'Other', productCode: 'BDG_001' });
+    const dupe = await c.post('/products', { name: 'Other', productCode: 'BDG_001', productCategoryId: 1 });
     expect(dupe.status).toBe(400);
     expect(dupe.json.error.fieldErrors.productCode).toBeDefined();
 
-    const upd = await c.put(`/products/${id}`, { name: 'Badge Printer Pro', productCode: 'BDG_001', description: 'Prints badges' });
+    const upd = await c.put(`/products/${id}`, { name: 'Badge Printer Pro', productCode: 'BDG_001', description: 'Prints badges', productCategoryId: 1 });
     expect(upd.json.product).toMatchObject({ name: 'Badge Printer Pro', description: 'Prints badges' });
 
     expect((await c.patch(`/products/${id}`, { active: false })).json.product.active).toBe(false);
@@ -119,11 +119,16 @@ describe('profile', () => {
     expect((await c.get('/auth/session')).json.user.firstName).toBe('Charles');
   });
 
-  it('preferences → PATCH users/{id} (plural)', async () => {
+  it('preferences → PATCH users/{id} (plural) for MFA; theme stays in the session (V15)', async () => {
     const r = await c.patch('/profile/preferences', { themeName: 'dark' });
     expect(r.status).toBe(200);
     expect(r.json.user.themeName).toBe('dark');
-    expect(lastCall(/\/users\/101$/)).toMatchObject({ method: 'PATCH', body: { themeName: 'dark' } });
+    expect(lastCall(/\/users\/101$/)).toBeUndefined(); // real VMS 500s on themeName
+    expect((await c.get('/profile')).json.user.themeName).toBe('dark'); // survives a profile refresh
+
+    const m = await c.patch('/profile/preferences', { mfaEnabled: false, mfaType: 'totp' });
+    expect(m.status).toBe(200);
+    expect(lastCall(/\/users\/101$/)).toMatchObject({ method: 'PATCH', body: { mfaEnabled: false, mfaType: 'totp' } });
     expect((await c.patch('/profile/preferences', {})).status).toBe(400);
   });
 

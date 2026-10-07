@@ -43,7 +43,14 @@ Demo users come from the mock VMS seed. Every password is `Force5!demo`.
 
 The password-recovery code is `654321`.
 
-**Against a real VMS:** copy `apps/bff/.env.example` to `apps/bff/.env`, then set `VMS_URL` and `KEYCLOAK_URL`.
+### Against your local VMS
+1. Start vmsServer: `./gradlew bootRun` in `C:devForce5msServer` (profile `local`, port 8080, MySQL on 3306).
+2. Run `pnpm dev:local-vms`, or the **CRM: dev against local VMS** run configuration in IntelliJ.
+   - Data comes from real VMS.
+   - Sign-in uses the mock Keycloak, which checks passwords against VMS. There is no local Keycloak, and the `local` VMS profile doesn't verify token signatures.
+3. Sign in as a tenant-1 user holding `CRM_ADMIN` or `ROLE_ADMIN` (the `CRM_ALLOWED_ROLES` setting).
+
+Configuration is in `apps/bff/local-vms.env` and `apps/mock-vms/local-vms.env`. Every real-VMS defect found so far is in [`docs/VMS_CHANGE_REQUESTS.md`](docs/VMS_CHANGE_REQUESTS.md).
 
 ### Mobile
 ```bash
@@ -65,15 +72,31 @@ pnpm --filter @crm/e2e install-browsers   # once
 pnpm test:e2e
 ```
 
-## Production
-`Dockerfile` builds one image: the BFF serves `/crm/api` and the built SPA under `/crm`. It listens on 8082, and `/crm/api/health` is used for the load balancer.
+## CI and deployment
+This follows admin-cloud-v2: GitHub Actions for tests and scans, and AWS CodeBuild as the deploy gate.
 
-Required environment in non-local deployments:
-- `SESSION_SECRET` (at least 32 characters)
-- `REDIS_URL`
-- `VMS_URL`
-- `KEYCLOAK_URL`
-- `APP_ENV`
+**GitHub Actions**
+- `.github/workflows/tests.yml` (blocking) runs:
+  - lint, typecheck and unit tests;
+  - Playwright smoke tests against the production build (desktop and phone);
+  - an Expo bundle export plus `expo-doctor`.
+- `.github/workflows/security.yml`:
+  - gitleaks: blocking, SHA-pinned binary;
+  - Trivy (pinned commit), Semgrep and `pnpm audit`: report-only, artifacts kept 400 days.
+- `.github/dependabot.yml`: npm and GitHub Actions updates. Expo/React Native and React are excluded; upgrade those together with `npx expo install --fix`.
+
+**CodeBuild** (`buildspec.yml`)
+- Runs the same gate as CI, then builds an Elastic Beanstalk source bundle for the **Node.js 22 on AL2023** platform: BFF + production `node_modules` + SPA + `Procfile`.
+- Then `scripts/smoke-boot.sh` boots that exact bundle with a production config and checks health, the SPA shell, deep links and API auth. This step is blocking.
+- To run the smoke gate locally: build the bundle as in `buildspec.yml`, then `bash scripts/smoke-boot.sh eb-bundle`.
+
+**Runtime**
+- EB sets `PORT` (8080), and nginx proxies to it. The health-check path is `/crm/api/health`.
+- Required outside `APP_ENV=local` (startup fails fast without them): `SESSION_SECRET` (32+ characters), `VMS_URL`, `KEYCLOAK_URL`.
+- Also set `APP_ENV`, `REDIS_URL` (when running more than one instance), and `CRM_ALLOWED_ROLES` if it differs from the default.
+- Secrets belong in AWS Secrets Manager, not EB environment properties. Loading them is the next step: deploy prep.
+
+`Dockerfile` builds the same app as a container image (listens on 8082), for local use or a future move to ECS.
 
 See `apps/bff/.env.example` for the full list.
 
@@ -86,7 +109,12 @@ See `apps/bff/.env.example` for the full list.
   - **V5:** change password. The UI links to Forgot Password instead.
   - **V8:** draft KPI. The card is hidden until VMS supports it.
   - **V10:** remove a logo or sign-in image.
-- **New VMS finding:** `passwordRecovery/update` does not check the recovery code. The BFF re-verifies the code first, but VMS should fix this.
+  - **V14:** product create/edit. VMS returns no product categories, and a category is required.
+  - **V15:** saving the theme to VMS. It's kept per session and per browser until then.
+- **Verified against local real VMS (2026-10-06):** every read, sort and write path.
+  - Works: publish new; edit registered or draft accounts; images; activate/deactivate; licenses (add/seats/deactivate); profile; product activate/deactivate.
+  - Doesn't: draft create (V2) and product create/edit (V14).
+  - Full findings, including Critical security issues, are in `docs/VMS_CHANGE_REQUESTS.md`.
 - **Omitted by decision:** the prototype's Subscription Status column and Assigned Products table, because VMS has no subscription data. Assigned products are covered by the Licenses tab.
 - **Deliberate visual change:**
   - Filled primary buttons use a darker orange (`#c2500e`) so white text meets WCAG AA.
@@ -97,5 +125,6 @@ See `apps/bff/.env.example` for the full list.
   - Redis session store tested against a real Redis.
   - Docker image build (it was not run here).
   - axe accessibility pass.
-  - CI pipeline.
+  - Apply the AWS infrastructure. The templates and runbook are ready (`infra/`, `docs/DEPLOYMENT.md`); someone with AWS access has to validate and deploy them.
+  - First CI run on GitHub. The workflows are validated locally, not yet run.
   - Final mobile app icons (the current ones are placeholders).

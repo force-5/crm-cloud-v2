@@ -8,9 +8,11 @@
     "build": "tsc -p tsconfig.build.json && node build.mjs",
     "start": "node --env-file-if-exists=.env dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:local-vms": "tsx watch --env-file=local-vms.env src/server.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1146.0",
     "@crm/contracts": "workspace:*",
     "@fastify/cookie": "^11.1.2",
     "@fastify/helmet": "^13.1.1",

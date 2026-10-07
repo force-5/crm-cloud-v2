@@ -1,0 +1,343 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Force 5 CRM v2 CI/CD for one stage: CodeBuild project (buildspec.yml — test gate, build, smoke-boot),
+  CodePipeline (GitHub → Build → Elastic Beanstalk) and an EventBridge Scheduler schedule.
+  Adapted from vmsServer/infra/test-pipelines-us-east-1.yaml. The IAM composition and guardrails are
+  kept on purpose; read that template's README before changing them. Deploy after
+  infra/crm-eb-environment.yaml. See docs/DEPLOYMENT.md.
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues: [test, prod]
+
+  GitHubConnectionArn:
+    Type: String
+    Description: >-
+      Existing CodeConnection IN THIS REGION. Connections are per region. us-east-1 (test) already has
+      arn:aws:codeconnections:us-east-1:349395204314:connection/bb38aaa6-92f5-4bdf-8eba-fe990eb7e124;
+      for us-east-2, use the connection admin-web-build-pipeline uses (look it up with
+      aws codepipeline get-pipeline). The connection's GitHub app must be granted access to the repo.
+
+  ArtifactBucket:
+    Type: String
+    Description: >-
+      Existing CodePipeline artifact bucket in this region (test: the one shared with
+      vms-test-pipeline / admin-test-pipeline).
+
+  RepositoryId:
+    Type: String
+    Default: force-5/crm-cloud-v2
+  Branch:
+    Type: String
+    Default: main
+
+  EbApplication:
+    Type: String
+    Description: ApplicationName output of the crm-eb-environment stack (crm-v2-<stage>).
+  EbEnvironment:
+    Type: String
+    Description: EnvironmentName output of the crm-eb-environment stack (crm-v2-<stage>-env).
+  EbInstanceRoleName:
+    Type: String
+    Description: InstanceRoleName output of the crm-eb-environment stack (allowed by the PassRole guardrail).
+  EbServiceRoleName:
+    Type: String
+    Default: aws-elasticbeanstalk-service-role
+
+  ScheduleExpression:
+    Type: String
+    Default: cron(0 4,11 ? * MON-FRI *)
+    Description: >-
+      Same windows as admin and vms: test at 4am and 11am weekdays, prod at 6am and 1pm
+      (cron(0 6,13 ? * MON-FRI *)). Test runs two hours ahead so a broken build shows up there first.
+  ScheduleTimezone:
+    Type: String
+    Default: America/New_York
+  ScheduleState:
+    Type: String
+    AllowedValues: [ENABLED, DISABLED]
+    Default: ENABLED
+
+Rules:
+  StageMatchesRegion:
+    Assertions:
+      - Assert: !Or
+          - !And [!Equals [!Ref Stage, prod], !Equals [!Ref 'AWS::Region', us-east-2]]
+          - !And [!Equals [!Ref Stage, test], !Equals [!Ref 'AWS::Region', us-east-1]]
+        AssertDescription: Stage prod must be deployed in us-east-2 and test in us-east-1.
+
+Resources:
+
+  # ==========================================================================
+  # CodeBuild
+  # ==========================================================================
+  BuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'codebuild-crm-${Stage}-build-service-role'
+      Path: /service-role/
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: codebuild.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub 'crm-${Stage}-build-permissions'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: Logs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/crm-${Stage}-build'
+                  - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/crm-${Stage}-build:*'
+              - Sid: PipelineArtifacts
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:s3:::${ArtifactBucket}'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${ArtifactBucket}/*'
+              # No Secrets Manager access: the build needs no secrets. The smoke boot uses a throwaway
+              # config (scripts/smoke-boot.sh) and the app reads its own secret at runtime on EB.
+
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub 'crm-${Stage}-build'
+      Description: !Sub 'Builds, tests and smoke-boots crm-cloud-v2 for the ${Stage} environment.'
+      ServiceRole: !GetAtt BuildRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yml
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        # Same image family and compute class as the admin builds. The image must offer the nodejs 22
+        # runtime that buildspec.yml asks for.
+        Type: LINUX_CONTAINER
+        Image: aws/codebuild/amazonlinux-x86_64-standard:5.0
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        PrivilegedMode: false
+      Cache:
+        # Speeds up pnpm installs between scheduled runs.
+        Type: LOCAL
+        Modes: [LOCAL_CUSTOM_CACHE]
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Sub '/aws/codebuild/crm-${Stage}-build'
+      TimeoutInMinutes: 30
+      Tags:
+        - { Key: Application, Value: crm-v2 }
+        - { Key: Environment, Value: !Ref Stage }
+
+  # ==========================================================================
+  # CodePipeline
+  #
+  # Role composition deliberately mirrors the working vms/admin pipeline roles: the two AWS managed
+  # Elastic Beanstalk policies, plus scoped inline permissions, plus a region guardrail. Do NOT
+  # hand-roll a scoped replacement for the managed policies: CodePipeline's EB deploy has
+  # CloudFormation fetch the environment template from an AWS-owned elasticbeanstalk-* bucket whose
+  # name cannot be enumerated. Without AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy's
+  # s3:GetObject on arn:aws:s3:::elasticbeanstalk-*/*, the deploy fails with an opaque
+  # ValidationException "S3 error: Access Denied".
+  # ==========================================================================
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'AWSCodePipelineServiceRole-${AWS::Region}-crm-${Stage}-pipeline'
+      Path: /service-role/
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: codepipeline.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth'
+      Policies:
+        - PolicyName: !Sub 'crm-${Stage}-pipeline-permissions'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: UseGitHubConnection
+                Effect: Allow
+                Action:
+                  - codeconnections:UseConnection
+                  - codestar-connections:UseConnection
+                Resource:
+                  - !Ref GitHubConnectionArn
+                  - !Sub
+                    - 'arn:${AWS::Partition}:codestar-connections:${AWS::Region}:${AWS::AccountId}:connection/${Id}'
+                    - Id: !Select [1, !Split ['connection/', !Ref GitHubConnectionArn]]
+              - Sid: PipelineArtifactBucket
+                Effect: Allow
+                Action:
+                  - s3:GetBucketVersioning
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${ArtifactBucket}'
+              - Sid: PipelineArtifactObjects
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:GetObjectVersion
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${ArtifactBucket}/*'
+              - Sid: StartCodeBuild
+                Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuildBatches
+                  - codebuild:StartBuildBatch
+                Resource: !Sub 'arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:project/crm-${Stage}-build'
+        - PolicyName: region-and-passrole-guardrail
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # The managed EB policies grant elasticbeanstalk:* on * and cloudformation:* on
+              # stack/awseb-* in ANY region, which would let the test role touch prod. Deny everything
+              # outside this region. The Null check is essential: without it the Deny also fires when
+              # aws:RequestedRegion is absent (global/IAM calls) and blocks everything.
+              - Sid: DenyEverythingOutsideThisRegion
+                Effect: Deny
+                NotAction:
+                  - 'iam:*'
+                  - 'sts:*'
+                Resource: '*'
+                Condition:
+                  StringNotEquals:
+                    aws:RequestedRegion: !Ref 'AWS::Region'
+                  'Null':
+                    aws:RequestedRegion: 'false'
+              - Sid: DenyPassingAnyRoleExceptThisAppsEbRoles
+                Effect: Deny
+                Action: iam:PassRole
+                NotResource:
+                  - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${EbServiceRoleName}'
+                  - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${EbInstanceRoleName}'
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub 'crm-${Stage}-pipeline'
+      RoleArn: !GetAtt PipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: '1'
+              OutputArtifacts:
+                - Name: SourceArtifact
+              Configuration:
+                ConnectionArn: !Ref GitHubConnectionArn
+                FullRepositoryId: !Ref RepositoryId
+                BranchName: !Ref Branch
+                # false: schedule-driven, like admin and vms. Keep it false, and never add a
+                # pipeline-level `Triggers` block: the legacy CRM has both, so it deploys on every push.
+                DetectChanges: 'false'
+                OutputArtifactFormat: CODE_ZIP
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: BuildArtifact
+              Configuration:
+                ProjectName: !Ref BuildProject
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: ElasticBeanstalk
+                Version: '1'
+              InputArtifacts:
+                - Name: BuildArtifact
+              Configuration:
+                ApplicationName: !Ref EbApplication
+                EnvironmentName: !Ref EbEnvironment
+      Tags:
+        - { Key: Application, Value: crm-v2 }
+        - { Key: Environment, Value: !Ref Stage }
+
+  # ==========================================================================
+  # EventBridge Scheduler (not an EventBridge rule — different service: `aws scheduler`)
+  # ==========================================================================
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'EventBridgeScheduler-${AWS::Region}-crm-${Stage}-pipeline'
+      Path: /service-role/
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            # Confused-deputy guard: only this account's schedules may assume it.
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref 'AWS::AccountId'
+      Policies:
+        - PolicyName: start-crm-pipeline
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: codepipeline:StartPipelineExecution
+                Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Pipeline}'
+
+  Schedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub 'crm-${Stage}-pipeline-build-deploy'
+      Description: !Sub 'Scheduled build+deploy of crm-cloud-v2 to ${Stage}.'
+      State: !Ref ScheduleState
+      ScheduleExpression: !Ref ScheduleExpression
+      ScheduleExpressionTimezone: !Ref ScheduleTimezone
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      Target:
+        Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${Pipeline}'
+        RoleArn: !GetAtt SchedulerRole.Arn
+
+Outputs:
+  PipelineName:
+    Value: !Ref Pipeline
+  BuildProjectName:
+    Value: !Ref BuildProject
+  PipelineRoleArn:
+    Value: !GetAtt PipelineRole.Arn
+  ScheduleSummary:
+    Value: !Sub '${ScheduleExpression} ${ScheduleTimezone} (${ScheduleState})'

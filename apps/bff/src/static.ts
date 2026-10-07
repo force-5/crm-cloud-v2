@@ -18,7 +18,7 @@ export async function registerSpa(app: FastifyInstance, config: Config): Promise
   await app.register(fastifyStatic, {
     root,
     prefix: `${config.basePath}/`,
-    index: false,
+    index: 'index.html', // `${basePath}/` itself must serve the SPA shell (was a 403)
     wildcard: true,
     cacheControl: false, // we set Cache-Control ourselves below
 

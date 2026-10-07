@@ -1,0 +1,96 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Cancel an in-flight run when a newer commit arrives so only the latest state is tested.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Lint, typecheck (every package, incl. mobile) and unit/integration tests: contracts, api-client,
+  # the BFF against the in-process mock VMS, and web with MSW. This is the gate; buildspec.yml runs
+  # the same commands before every deploy.
+  # ---------------------------------------------------------------------------
+  checks:
+    name: Lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Enable pnpm (corepack; version pinned in package.json)
+        run: corepack enable
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test
+
+  # ---------------------------------------------------------------------------
+  # Browser smoke tests against the PRODUCTION build: mock VMS + built BFF serving the built SPA, at
+  # desktop and phone sizes. Blocking — this lane caught a blank-page bundling bug that every unit
+  # test missed. Deterministic: no deployed environment, no real credentials (mock seed users only).
+  # ---------------------------------------------------------------------------
+  e2e:
+    name: Browser smoke tests (production build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Build web + BFF
+        run: pnpm --filter @crm/web build && pnpm --filter @crm/bff build
+      - name: Install Chromium
+        working-directory: e2e
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run smoke tests
+        run: pnpm test:e2e
+      # Mock data only, but traces include session cookies, so keep retention short.
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/**
+            e2e/test-results/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # Mobile: the Metro bundle must build (typecheck already ran in `checks`). This catches monorepo
+  # resolution and native-module import errors that tsc can't see. No device or EAS account needed.
+  # ---------------------------------------------------------------------------
+  mobile-bundle:
+    name: Mobile bundle (Expo export)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: expo-doctor
+        working-directory: apps/mobile
+        run: npx --yes expo-doctor
+      - name: Export Android bundle
+        working-directory: apps/mobile
+        run: pnpm exec expo export --platform android --output-dir "$RUNNER_TEMP/expo-export"

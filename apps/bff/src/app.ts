@@ -69,7 +69,12 @@ export type BuildOptions = { logger?: FastifyServerOptions['logger'] };
 export async function buildApp(config: Config, opts: BuildOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: opts.logger ?? loggerOptions(config),
-    trustProxy: config.trustProxy,
+    // A hop count becomes "trust the first n hops from the socket" (proxy-addr semantics); Fastify's
+    // types only take booleans/strings/functions.
+    trustProxy:
+      typeof config.trustProxy === 'number'
+        ? (_addr: string, hop: number) => hop < (config.trustProxy as number)
+        : config.trustProxy,
     bodyLimit: 1024 * 1024,
     requestIdHeader: false,
     genReqId: (req) => {

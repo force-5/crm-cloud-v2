@@ -7,7 +7,8 @@ import { isoDate, nn, pagingQuery, toPage, vmsPageSchema, type SortSpec } from '
 const s = z.string().nullish();
 const date = z.union([z.string(), z.number()]).nullish();
 
-const vmsCategorySchema = z.object({ id: z.number(), code: s, description: s, active: z.boolean().nullish() });
+/** Real VMS currently returns every category with null fields (ModelMapper bug, see VMS change request V14). */
+const vmsCategorySchema = z.object({ id: z.number().nullish(), code: s, description: s, active: z.boolean().nullish() });
 
 /** VMS SaleableProductDto (audit fields only if VMS ever adds them). */
 export const vmsProductSchema = z.looseObject({
@@ -41,7 +42,7 @@ export function mapProduct(p: VmsProduct & { id?: number | null }): Product {
     productCode: nn(p.productCode),
     productSku: nn(p.productSku),
     productVersion: nn(p.productVersion),
-    productCategoryId: nn(p.productCategoryId ?? p.productCategory?.id),
+    productCategoryId: nn(p.productCategoryId ?? p.productCategory?.id ?? undefined),
     category: nn(p.productCategory?.description),
     active: p.active !== false,
     ...(hasAudit
@@ -59,7 +60,7 @@ export function mapProduct(p: VmsProduct & { id?: number | null }): Product {
 
 const mapCategories = (r: z.infer<typeof productEnvelope>): Option[] =>
   (r.supportingLists?.productCategories ?? [])
-    .filter((c) => c.active !== false)
+    .filter((c): c is typeof c & { id: number } => typeof c.id === 'number' && c.active !== false)
     .map((c) => ({ value: c.id, label: c.description ?? c.code ?? String(c.id), ...(c.code ? { code: c.code } : {}) }));
 
 export const PRODUCT_SORT: SortSpec = {

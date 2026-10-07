@@ -6,7 +6,22 @@ import { mapCommonLookups, nn, supportingListsSchema } from './common';
 const s = z.string().nullish();
 const n = z.number().nullish();
 const named = z.object({ id: z.number().nullish(), code: s, description: s }).nullish();
-const role = z.object({ code: z.string(), name: s, shortDisplay: s });
+/**
+ * Roles come in two shapes:
+ * - `authenticate`: `AuthSecurityRoleDto {code, name, shortDisplay}` — and every role appears twice, once
+ *   auto-mapped from TenantSecurityRole with `code: null`;
+ * - `signedInUser`: the TenantSecurityRole entity, with the code nested at `securityRole.code`.
+ * `roleCode` reads either; codeless/inactive entries are dropped in mapCurrentUser.
+ */
+const role = z.looseObject({
+  code: s,
+  name: s,
+  shortDisplay: s,
+  active: z.boolean().nullish(),
+  securityRole: z.looseObject({ code: s, name: s, shortDisplay: s }).nullish(),
+});
+type VmsRole = z.infer<typeof role>;
+const roleCode = (r: VmsRole) => r.code ?? r.securityRole?.code ?? undefined;
 const permission = z.object({
   code: z.string(),
   hasRead: z.boolean().nullish(),
@@ -67,7 +82,12 @@ export function mapMfaType(v: string | null | undefined): MfaType | undefined {
 }
 
 export function mapCurrentUser(u: VmsAuthUser): CurrentUser {
-  const roles = u.roles?.length ? u.roles : (u.securityRoles ?? []);
+  const all = [...(u.roles ?? []), ...(u.securityRoles ?? [])];
+  const roles = all
+    .filter((r) => r.active !== false)
+    .map((r) => ({ code: roleCode(r), name: r.name ?? r.securityRole?.name ?? r.shortDisplay ?? undefined }))
+    .filter((r): r is { code: string; name: string | undefined } => !!r.code)
+    .filter((r, i, arr) => arr.findIndex((x) => x.code === r.code) === i);
   const theme = (u.themeName ?? u.themeMode ?? '').toLowerCase() as ThemeName;
   const lang = u.language?.code ?? u.tenant?.language?.code ?? 'en';
   const country = u.country?.code ?? u.tenant?.country?.code ?? 'US';
@@ -89,7 +109,7 @@ export function mapCurrentUser(u: VmsAuthUser): CurrentUser {
     themeName: THEMES.includes(theme) ? theme : 'system',
     mfaEnabled: u.mfaEnabled === true,
     mfaType: mapMfaType(u.mfaType),
-    securityRoles: roles.map((r) => ({ code: r.code, name: r.name ?? r.shortDisplay ?? r.code })),
+    securityRoles: roles.map((r) => ({ code: r.code, name: r.name ?? r.code })),
     permissions: (u.securityPermissions ?? []).map((p) => ({
       code: p.code,
       read: p.hasRead === true,
@@ -208,13 +228,20 @@ export async function updateSignedInUser(
   return toProfileResponse(await vms.put(`signedInUser/${sessionUser.id}`, { json: dto, schema: userEnvelope }));
 }
 
-/** `PATCH users/{id}` (plural — the old CRM called the non-existent `user/{id}`). */
-export async function patchUserPreferences(vms: Vms, userId: number, p: PreferencesRequest): Promise<void> {
+/**
+ * `PATCH users/{id}` (plural — the old CRM called the non-existent `user/{id}`).
+ *
+ * The theme is NOT sent: VMS's `themeName` case calls a setter that doesn't exist (500), and its
+ * ThemeMode enum has no "system" (V15). Until that's fixed, the theme lives in the session and the
+ * client's localStorage only. Returns whether anything was sent to VMS.
+ */
+export async function patchUserPreferences(vms: Vms, userId: number, p: PreferencesRequest): Promise<boolean> {
   const updates: Record<string, unknown> = {};
-  if (p.themeName !== undefined) updates.themeName = p.themeName;
   if (p.mfaEnabled !== undefined) updates.mfaEnabled = p.mfaEnabled;
   if (p.mfaType !== undefined) updates.mfaType = p.mfaType;
+  if (Object.keys(updates).length === 0) return false;
   await vms.patch(`users/${userId}`, { json: updates });
+  return true;
 }
 
 export async function updateProfileImage(vms: Vms, userId: number, dataUrl: string): Promise<string> {

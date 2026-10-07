@@ -1,15 +1,20 @@
 import { buildApp } from './app';
+import { loadAwsSecrets } from './aws-secrets';
 import { loadConfig } from './config';
 
 let config;
+let secretKeys: string[] = [];
 try {
+  // Deployed environments (APP_ENV=production|staging) pull their secrets first; see aws-secrets.ts.
+  secretKeys = await loadAwsSecrets();
   config = loadConfig();
 } catch (err) {
-  console.error((err as Error).message);
+  console.error(`FATAL: ${(err as Error).message}`);
   process.exit(1);
 }
 
 const app = await buildApp(config);
+if (secretKeys.length) app.log.info({ keys: secretKeys }, 'Loaded configuration from AWS Secrets Manager');
 
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, 'shutting down');

@@ -64,19 +64,21 @@ export function mapAssignableProduct(p: z.infer<typeof vmsProductLicenseSchema>)
 }
 
 export const LICENSE_SORT: SortSpec = {
+  // VMS sorts on TenantProductLicense entity paths, not DTO field names (`productName` → 500).
+  // Verified against local vmsServer 2026-10-06.
   map: {
-    productName: ['productName'],
-    product: ['productName'],
-    licenseType: ['licenseType'],
-    type: ['licenseType'],
-    category: ['category'],
-    productCode: ['productCode'],
-    purchasedCount: ['licenseCount'],
+    productName: ['productLicense.product.name'],
+    product: ['productLicense.product.name'],
+    licenseType: ['productLicense.licenseType.description'],
+    type: ['productLicense.licenseType.description'],
+    category: ['productLicense.product.productCategory.description'],
+    productCode: ['productLicense.product.productCode'],
+    purchasedCount: ['purchasedLicenseCount'],
     usedCount: ['registeredLicenseCount'],
     status: ['active'],
     active: ['active'],
   },
-  default: ['productName,asc'],
+  default: ['productLicense.product.name,asc'],
 };
 
 export async function listLicenses(vms: Vms, tenantId: number, q: ListQuery): Promise<Page<TenantLicense>> {

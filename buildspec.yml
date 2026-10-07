@@ -1,0 +1,60 @@
+# AWS CodeBuild — the deploy gate for CodePipeline → Elastic Beanstalk (Node.js 22 on AL2023).
+# Same shape as admin-cloud-v2's buildspec.yaml: test (blocking) → build → package → smoke-boot the
+# exact bundle (blocking) → artifact. The output is an EB source bundle, not a WAR.
+#
+# Bundle layout (eb-bundle/):
+#   package.json, node_modules/   BFF production deps (`pnpm deploy --prod`; real folders, so EB
+#                                 skips its own `npm install` because node_modules is present)
+#   dist/server.js                BFF, with the @crm/* workspace packages bundled in
+#   web/                          the built SPA, served by the BFF under /crm
+#   Procfile                      web: node dist/server.js
+#   .platform/                    nginx/log hooks (when present)
+#
+# EB environment properties provide APP_ENV, BASE_PATH, VMS_URL, KEYCLOAK_URL, REDIS_URL, etc.
+# EB sets PORT (8080) and the BFF reads it. Secrets do not belong in EB properties (see README, "CI and deployment").
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+    commands:
+      - corepack enable
+      - pnpm --version
+      - pnpm install --frozen-lockfile
+
+  build:
+    commands:
+      - echo "Lint, typecheck and unit tests (deploy gate)..."
+      - pnpm lint
+      - pnpm typecheck
+      - pnpm test
+      - echo "Building SPA and BFF..."
+      - pnpm --filter @crm/web build
+      - pnpm --filter @crm/bff build
+      - echo "Creating EB source bundle..."
+      - rm -rf eb-bundle && mkdir -p eb-bundle
+      - pnpm --filter @crm/bff deploy --prod "$CODEBUILD_SRC_DIR/eb-bundle"
+      # pnpm deploy copies the BFF package source; ship only what runs. With the hoisted linker it
+      # also leaves .bin shims under apps/bff/eb-bundle, which must never end up in the bundle.
+      - rm -rf eb-bundle/src eb-bundle/test eb-bundle/eb-bundle eb-bundle/build.mjs eb-bundle/tsconfig*.json eb-bundle/vitest.config.ts eb-bundle/*.env eb-bundle/.env* apps/bff/eb-bundle
+      - cp -r apps/bff/dist eb-bundle/dist
+      - cp -r apps/web/dist eb-bundle/web
+      - rm -f eb-bundle/web/*.map eb-bundle/web/assets/*.map
+      # Non-secret default so the bundled SPA is served; an EB property of the same name wins.
+      - echo "WEB_DIST=web" > eb-bundle/.env
+      - 'printf "web: node --env-file-if-exists=.env dist/server.js\n" > eb-bundle/Procfile'
+      - cp -r .platform eb-bundle/ 2>/dev/null || true
+      # Startup smoke gate — BLOCKING. Boots the exact bundle bytes about to ship with a production
+      # config and checks /crm/api/health, the SPA shell and an SPA deep link. It does NOT check
+      # connectivity to VMS, Keycloak or Redis; the EB health check covers that after deploy.
+      - echo "Smoke test - booting the bundle..."
+      - bash scripts/smoke-boot.sh eb-bundle
+      - echo "Bundle contents (top level):"
+      - ls -la eb-bundle
+
+artifacts:
+  base-directory: eb-bundle
+  files:
+    - '**/*'
+  # Dotfiles (.env, .platform/) are matched by **/* in CodeBuild, so they are included.
