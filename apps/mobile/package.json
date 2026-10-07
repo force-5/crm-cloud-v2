@@ -27,7 +27,7 @@
     "i18next": "^25.0.0",
     "react": "19.2.3",
     "react-hook-form": "^7.62.0",
-    "react-i18next": "^15.6.0",
+    "react-i18next": "^17.0.15",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
